@@ -14,6 +14,18 @@ enum Role {
   ADMIN
 }
 
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+enum AssignmentRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String           @id @default(uuid()) @db.Uuid
   email        String           @unique
@@ -21,6 +33,8 @@ model User {
   role         Role
   createdAt    DateTime         @default(now())
   profile      EmployeeProfile?
+  requestedAssignments AssignmentRequest[] @relation("AssignmentRequester")
+  reviewedAssignments  AssignmentRequest[] @relation("AssignmentReviewer")
 }
 
 model Department {
@@ -38,8 +52,70 @@ model EmployeeProfile {
   managerId    String?  @db.Uuid
   createdAt    DateTime @default(now())
 
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department Department        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  manager    EmployeeProfile?  @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports    EmployeeProfile[] @relation("EmployeeManager")
+  user              User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department        Department                  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  manager           EmployeeProfile?            @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports           EmployeeProfile[]           @relation("EmployeeManager")
+  assignments       EmployeeProjectAssignment[]
+  assignmentRequests AssignmentRequest[]
+}
+
+model Project {
+  id          String        @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNED)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime      @default(now())
+
+  deliverables       Deliverable[]
+  assignments        EmployeeProjectAssignment[]
+  assignmentRequests AssignmentRequest[]
+}
+
+model Deliverable {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  projectId   String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, name])
+}
+
+model EmployeeProjectAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  employeeId String   @db.Uuid
+  projectId  String   @db.Uuid
+  assignedAt DateTime @default(now())
+  releasedAt DateTime?
+
+  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([projectId])
+}
+
+model AssignmentRequest {
+  id         String                  @id @default(uuid()) @db.Uuid
+  employeeId String                  @db.Uuid
+  projectId  String                  @db.Uuid
+  requestedBy String                 @db.Uuid
+  reviewedBy String?                 @db.Uuid
+  status     AssignmentRequestStatus @default(PENDING)
+  createdAt  DateTime                @default(now())
+  reviewedAt DateTime?
+
+  employee  EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requester User            @relation("AssignmentRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  reviewer  User?           @relation("AssignmentReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([projectId])
+  @@index([status])
 }
