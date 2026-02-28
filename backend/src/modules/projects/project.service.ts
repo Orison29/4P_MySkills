@@ -71,3 +71,35 @@ export const updateProjectStatus = async (
 		data: { status }
 	});
 };
+
+export const deleteProject = async (projectId: string) => {
+	const project = await prisma.project.findUnique({
+		where: { id: projectId },
+		include: {
+			assignments: {
+				where: {
+					releasedAt: null // Only check active assignments
+				}
+			}
+		}
+	});
+
+	if (!project) {
+		throw new Error("Project not found");
+	}
+
+	// Don't allow deletion if there are active assignments
+	if (project.assignments.length > 0) {
+		throw new Error("Cannot delete project with active assignments. Complete the project first.");
+	}
+
+	// Only allow deletion of PLANNED projects (not started yet)
+	if (project.status !== ProjectStatus.PLANNED) {
+		throw new Error("Can only delete projects in PLANNED status");
+	}
+
+	// This will cascade delete: deliverables, deliverable skills, assignment requests, etc.
+	return prisma.project.delete({
+		where: { id: projectId }
+	});
+};

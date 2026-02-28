@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { Role } from "@prisma/client";
 import { ENV } from "../config/env";
-
+import { Role } from "@prisma/client";
 declare module "express-serve-static-core" {
   interface Request {
     user?: {

@@ -2,19 +2,23 @@ import { AssignmentRequestStatus, ProjectStatus } from "@prisma/client";
 import { prisma } from "../../utils/db";
 
 export const createAssignmentRequest = async (
-	projectId: string,
+	deliverableId: string,
 	employeeId: string,
 	requestedByUserId: string
 ) => {
-	const project = await prisma.project.findUnique({
-		where: { id: projectId }
+	// Verify deliverable exists and get associated project
+	const deliverable = await prisma.deliverable.findUnique({
+		where: { id: deliverableId },
+		include: {
+			project: true
+		}
 	});
 
-	if (!project) {
-		throw new Error("Project not found");
+	if (!deliverable) {
+		throw new Error("Deliverable not found");
 	}
 
-	if (project.status !== ProjectStatus.ACTIVE) {
+	if (deliverable.project.status !== ProjectStatus.ACTIVE) {
 		throw new Error("Project is not active");
 	}
 
@@ -40,7 +44,7 @@ export const createAssignmentRequest = async (
 	const pendingRequest = await prisma.assignmentRequest.findFirst({
 		where: {
 			employeeId,
-			projectId,
+			deliverableId,
 			status: AssignmentRequestStatus.PENDING
 		}
 	});
@@ -51,7 +55,8 @@ export const createAssignmentRequest = async (
 
 	return prisma.assignmentRequest.create({
 		data: {
-			projectId,
+			projectId: deliverable.projectId,
+			deliverableId,
 			employeeId,
 			requestedBy: requestedByUserId
 		}
@@ -133,7 +138,8 @@ export const reviewAssignmentRequest = async (
 		await prisma.employeeProjectAssignment.create({
 			data: {
 				employeeId: request.employeeId,
-				projectId: request.projectId
+				projectId: request.projectId,
+				deliverableId: request.deliverableId
 			}
 		});
 

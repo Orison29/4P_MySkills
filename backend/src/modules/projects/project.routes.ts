@@ -5,7 +5,9 @@ import { requireRole } from "../../middlewares/role.middleware";
 import {
 	createProjectHandler,
 	getProjectsHandler,
-	updateProjectStatusHandler
+	updateProjectStatusHandler,
+	analyzeProjectHandler,
+	deleteProjectHandler
 } from "./project.controller";
 
 const router = Router();
@@ -20,6 +22,7 @@ router.post(
 router.get(
 	"/",
 	authMiddleware,
+	requireRole(Role.HR),
 	getProjectsHandler
 );
 
@@ -28,6 +31,20 @@ router.patch(
 	authMiddleware,
 	requireRole(Role.HR),
 	updateProjectStatusHandler
+);
+
+router.post(
+	"/:id/analyze",
+	authMiddleware,
+	requireRole(Role.HR),
+	analyzeProjectHandler
+);
+
+router.delete(
+	"/:id",
+	authMiddleware,
+	requireRole(Role.HR),
+	deleteProjectHandler
 );
 
 export default router;

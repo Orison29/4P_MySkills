@@ -26,6 +26,21 @@ enum AssignmentRequestStatus {
   REJECTED
 }
 
+enum SkillRatingStatus {
+  PENDING
+  APPROVED
+  EDITED
+  REJECTED
+}
+
+enum SkillChangeType {
+  INITIAL_RATING
+  SELF_UPDATED
+  MANAGER_APPROVED
+  MANAGER_EDITED
+  MANAGER_REJECTED
+}
+
 model User {
   id           String           @id @default(uuid()) @db.Uuid
   email        String           @unique
@@ -35,6 +50,8 @@ model User {
   profile      EmployeeProfile?
   requestedAssignments AssignmentRequest[] @relation("AssignmentRequester")
   reviewedAssignments  AssignmentRequest[] @relation("AssignmentReviewer")
+  reviewedSkills       EmployeeSkill[]     @relation("SkillReviewer")
+  skillProgressReviews SkillProgressLog[]  @relation("ProgressReviewer")
 }
 
 model Department {
@@ -58,6 +75,8 @@ model EmployeeProfile {
   reports           EmployeeProfile[]           @relation("EmployeeManager")
   assignments       EmployeeProjectAssignment[]
   assignmentRequests AssignmentRequest[]
+  employeeSkills    EmployeeSkill[]
+  skillProgressLogs SkillProgressLog[]
 }
 
 model Project {
@@ -81,41 +100,117 @@ model Deliverable {
   projectId   String   @db.Uuid
   createdAt   DateTime @default(now())
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project            Project                     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requiredSkills     DeliverableSkill[]
+  assignments        EmployeeProjectAssignment[]
+  assignmentRequests AssignmentRequest[]
 
   @@unique([projectId, name])
 }
 
 model EmployeeProjectAssignment {
-  id         String   @id @default(uuid()) @db.Uuid
-  employeeId String   @db.Uuid
-  projectId  String   @db.Uuid
-  assignedAt DateTime @default(now())
-  releasedAt DateTime?
+  id            String    @id @default(uuid()) @db.Uuid
+  employeeId    String    @db.Uuid
+  projectId     String    @db.Uuid
+  deliverableId String    @db.Uuid
+  assignedAt    DateTime  @default(now())
+  releasedAt    DateTime?
 
-  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee    EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverable Deliverable     @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
   @@index([projectId])
+  @@index([deliverableId])
 }
 
 model AssignmentRequest {
-  id         String                  @id @default(uuid()) @db.Uuid
-  employeeId String                  @db.Uuid
-  projectId  String                  @db.Uuid
-  requestedBy String                 @db.Uuid
-  reviewedBy String?                 @db.Uuid
-  status     AssignmentRequestStatus @default(PENDING)
-  createdAt  DateTime                @default(now())
-  reviewedAt DateTime?
+  id            String                  @id @default(uuid()) @db.Uuid
+  employeeId    String                  @db.Uuid
+  projectId     String                  @db.Uuid
+  deliverableId String                  @db.Uuid
+  requestedBy   String                  @db.Uuid
+  reviewedBy    String?                 @db.Uuid
+  status        AssignmentRequestStatus @default(PENDING)
+  createdAt     DateTime                @default(now())
+  reviewedAt    DateTime?
 
-  employee  EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  requester User            @relation("AssignmentRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
-  reviewer  User?           @relation("AssignmentReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+  employee    EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverable Deliverable     @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  requester   User            @relation("AssignmentRequester", fields: [requestedBy], references: [id], onDelete: Restrict)
+  reviewer    User?           @relation("AssignmentReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
 
   @@index([employeeId])
   @@index([projectId])
+  @@index([deliverableId])
   @@index([status])
+}
+
+model Skill {
+  id                String             @id @default(uuid()) @db.Uuid
+  name              String             @unique
+  description       String?
+  createdAt         DateTime           @default(now())
+  employeeSkills    EmployeeSkill[]
+  deliverableSkills DeliverableSkill[]
+  skillProgressLogs SkillProgressLog[]
+}
+
+model DeliverableSkill {
+  id            String      @id @default(uuid()) @db.Uuid
+  deliverableId String      @db.Uuid
+  skillId       String      @db.Uuid
+  weight        Float
+  createdAt     DateTime    @default(now())
+
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  skill       Skill       @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([deliverableId, skillId])
+  @@index([deliverableId])
+  @@index([skillId])
+}
+
+model EmployeeSkill {
+  id             String            @id @default(uuid()) @db.Uuid
+  employeeId     String            @db.Uuid
+  skillId        String            @db.Uuid
+  selfRating     Int
+  approvedRating Int?
+  status         SkillRatingStatus @default(PENDING)
+  reviewedBy     String?           @db.Uuid
+  reviewComment  String?
+  reviewedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  reviewer User?           @relation("SkillReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, skillId])
+  @@index([employeeId])
+  @@index([status])
+}
+
+model SkillProgressLog {
+  id             String          @id @default(uuid()) @db.Uuid
+  employeeId     String          @db.Uuid
+  skillId        String          @db.Uuid
+  previousRating Int?
+  newRating      Int
+  changeType     SkillChangeType
+  changedBy      String?         @db.Uuid
+  comment        String?
+  changedAt      DateTime        @default(now())
+
+  employee EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  reviewer User?           @relation("ProgressReviewer", fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([skillId])
+  @@index([changedAt])
 }

@@ -11,7 +11,7 @@ import {
 const router = Router();
 
 router.post(
-	"/projects/:id/request-assignment",
+	"/deliverables/:id/request-assignment",
 	authMiddleware,
 	requireRole(Role.HR),
 	createAssignmentRequestHandler

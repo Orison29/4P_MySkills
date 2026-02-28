@@ -11,12 +11,12 @@ export const createAssignmentRequestHandler = async (
 ) => {
 	try {
 		const rawId = req.params.id;
-		const projectId = Array.isArray(rawId) ? rawId[0] : rawId;
+		const deliverableId = Array.isArray(rawId) ? rawId[0] : rawId;
 		const { employeeId } = req.body as { employeeId: string };
 		const requestedByUserId = req.user!.userId;
 
 		const request = await createAssignmentRequest(
-			projectId,
+			deliverableId,
 			employeeId,
 			requestedByUserId
 		);
@@ -26,7 +26,7 @@ export const createAssignmentRequestHandler = async (
 		const message =
 			error instanceof Error ? error.message : "Internal server error";
 
-		if (message === "Project not found" || message === "Employee not found") {
+		if (message === "Deliverable not found" || message === "Employee not found") {
 			res.status(404).json({ error: message });
 			return;
 		}
