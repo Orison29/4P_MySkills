@@ -53,6 +53,11 @@ export const getRecommendedEmployees = async (
 
 	// 2. Get all employees with their approved skill ratings
 	const employees = await prisma.employeeProfile.findMany({
+		where: {
+			user: {
+				role: "EMPLOYEE"
+			}
+		},
 		include: {
 			user: {
 				select: {
@@ -67,7 +72,9 @@ export const getRecommendedEmployees = async (
 			},
 			employeeSkills: {
 				where: {
-					status: SkillRatingStatus.APPROVED // Only manager-approved ratings
+					status: {
+						in: [SkillRatingStatus.APPROVED, SkillRatingStatus.EDITED] 
+					}
 				},
 				include: {
 					skill: true
@@ -180,7 +187,9 @@ export const getEmployeeSkillAnalysis = async (
 			},
 			employeeSkills: {
 				where: {
-					status: SkillRatingStatus.APPROVED
+					status: {
+						in: [SkillRatingStatus.APPROVED, SkillRatingStatus.EDITED] 
+					}
 				},
 				include: {
 					skill: true
@@ -225,10 +234,9 @@ export const getEmployeeSkillAnalysis = async (
 		}
 	}
 
-	const coveragePercentage =
-		((deliverable.requiredSkills.length - missingSkills.length) /
-			deliverable.requiredSkills.length) *
-		100;
+	const coveragePercentage = deliverable.requiredSkills.length > 0 
+		? ((deliverable.requiredSkills.length - missingSkills.length) / deliverable.requiredSkills.length) * 100
+		: 0;
 
 	return {
 		employee: {

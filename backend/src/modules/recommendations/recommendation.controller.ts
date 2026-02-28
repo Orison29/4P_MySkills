@@ -21,8 +21,8 @@ export const getRecommendedEmployeesHandler = async (
 		const topKParam = req.query.topK as string | undefined;
 		const topK = topKParam ? parseInt(topKParam, 10) : 5;
 
-		if (isNaN(topK) || topK < 1 || topK > 50) {
-			res.status(400).json({ error: "topK must be between 1 and 50" });
+		if (isNaN(topK) || topK < 1 || topK > 1000) {
+			res.status(400).json({ error: "topK must be between 1 and 1000" });
 			return;
 		}
 
@@ -31,7 +31,7 @@ export const getRecommendedEmployeesHandler = async (
 		res.status(200).json({
 			deliverableId,
 			topK,
-			recommendations
+			topEmployees: recommendations
 		});
 	} catch (error) {
 		const message =
@@ -108,8 +108,8 @@ export const getProjectRecommendationsHandler = async (
 		const topKParam = req.query.topK as string | undefined;
 		const topK = topKParam ? parseInt(topKParam, 10) : 5;
 
-		if (isNaN(topK) || topK < 1 || topK > 50) {
-			res.status(400).json({ error: "topK must be between 1 and 50" });
+		if (isNaN(topK) || topK < 1 || topK > 1000) {
+			res.status(400).json({ error: "topK must be between 1 and 1000" });
 			return;
 		}
 

@@ -5,6 +5,7 @@ import { requireRole } from "../../middlewares/role.middleware";
 import {
 	createProjectHandler,
 	getProjectsHandler,
+	getProjectHandler,
 	updateProjectStatusHandler,
 	analyzeProjectHandler,
 	deleteProjectHandler
@@ -24,6 +25,13 @@ router.get(
 	authMiddleware,
 	requireRole(Role.HR),
 	getProjectsHandler
+);
+
+router.get(
+	"/:id",
+	authMiddleware,
+	requireRole(Role.HR),
+	getProjectHandler
 );
 
 router.patch(

@@ -75,7 +75,7 @@ export const getEmployeeSkillProgress = async (employeeId: string) => {
 	return {
 		employeeId: employee.id,
 		fullname: employee.fullname,
-		department: employee.department.name,
+		department: employee.department?.name || 'Unassigned',
 		skills: skillProgress
 	};
 };
@@ -86,6 +86,16 @@ export const getAllEmployeesOverview = async () => {
 			department: {
 				select: {
 					name: true
+				}
+			},
+			user: {
+				select: {
+					role: true
+				}
+			},
+			manager: {
+				select: {
+					fullname: true
 				}
 			},
 			employeeSkills: {
@@ -130,7 +140,9 @@ export const getAllEmployeesOverview = async () => {
 		return {
 			id: emp.id,
 			fullname: emp.fullname,
-			department: emp.department.name,
+			department: emp.department?.name || 'Unassigned',
+			role: emp.user.role,
+			manager: emp.manager ? { fullname: emp.manager.fullname } : null,
 			totalSkills,
 			approvedSkills,
 			pendingSkills,
@@ -236,5 +248,59 @@ export const getSkillProgressTimeline = async (
 		})),
 		totalImprovement,
 		durationDays
+	};
+};
+
+export const getDashboardStats = async () => {
+	const activeProjects = await prisma.project.count({
+		where: { status: "ACTIVE" }
+	});
+	
+	const totalEmployees = await prisma.employeeProfile.count();
+	
+	const pendingAssignments = await prisma.assignmentRequest.count({
+		where: { status: "PENDING" }
+	});
+
+	const thirtyDaysAgo = new Date();
+	thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+	const newSkills = await prisma.skill.count({
+		where: { createdAt: { gte: thirtyDaysAgo } }
+	});
+
+	// Get skill progress logs for the last 30 days
+	const recentLogs = await prisma.skillProgressLog.findMany({
+		where: { changedAt: { gte: thirtyDaysAgo } },
+		select: { changedAt: true }
+	});
+
+	// Aggregate by day
+	const activityByDay: Record<string, number> = {};
+	
+	// Initialize last 30 days with 0
+	for (let i = 29; i >= 0; i--) {
+		const d = new Date();
+		d.setDate(d.getDate() - i);
+		activityByDay[d.toISOString().split('T')[0]] = 0;
+	}
+
+	recentLogs.forEach(log => {
+		const dateStr = log.changedAt.toISOString().split('T')[0];
+		if (activityByDay[dateStr] !== undefined) {
+			activityByDay[dateStr]++;
+		}
+	});
+
+	const activityGraphData = Object.entries(activityByDay).map(([date, count]) => ({
+		date,
+		count
+	}));
+
+	return {
+		activeProjects,
+		totalEmployees,
+		pendingAssignments,
+		newSkills,
+		activityGraphData
 	};
 };

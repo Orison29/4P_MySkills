@@ -69,7 +69,7 @@ export const getPendingRequestsForManager = async (managerUserId: string) => {
 	});
 
 	if (!managerProfile) {
-		throw new Error("Manager profile not found");
+		return [];
 	}
 
 	return prisma.assignmentRequest.findMany({

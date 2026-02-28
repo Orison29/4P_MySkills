@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { ProjectStatus } from "@prisma/client";
-import { createProject, getAllProjects, updateProjectStatus, deleteProject } from "./project.service";
+import { createProject, getAllProjects, getProjectById, updateProjectStatus, deleteProject } from "./project.service";
 import { analyzeProjectWithLLM } from "../llm/llm.service";
 
 export const createProjectHandler = async (req: Request, res: Response) => {
@@ -29,6 +29,23 @@ export const getProjectsHandler = async (req: Request, res: Response) => {
 	try {
 		const projects = await getAllProjects();
 		res.status(200).json(projects);
+	} catch (error) {
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const getProjectHandler = async (req: Request, res: Response) => {
+	try {
+		const rawId = req.params.id;
+		const projectId = Array.isArray(rawId) ? rawId[0] : rawId;
+		const project = await getProjectById(projectId);
+		
+		if (!project) {
+			res.status(404).json({ error: "Project not found" });
+			return;
+		}
+		
+		res.status(200).json(project);
 	} catch (error) {
 		res.status(500).json({ error: "Internal server error" });
 	}

@@ -53,7 +53,7 @@ export const analyzeProjectWithLLM = async (
 
 	// Initialize Gemini
 	const genAI = new GoogleGenerativeAI(ENV.GEMINI_API_KEY);
-	const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+	const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 	// Create the prompt
 	const prompt = `You are a project management assistant. Analyze this project and break it down into deliverables with skill requirements.

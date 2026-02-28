@@ -33,3 +33,12 @@ export const getSkillProgressTimeline = async (req: Request, res: Response) => {
 		res.status(400).json({ error: error.message });
 	}
 };
+
+export const getDashboardStats = async (req: Request, res: Response) => {
+	try {
+		const stats = await analyticsService.getDashboardStats();
+		res.status(200).json(stats);
+	} catch (error: any) {
+		res.status(500).json({ error: error.message });
+	}
+};

@@ -29,4 +29,11 @@ router.get(
 	analyticsController.getSkillProgressTimeline
 );
 
+router.get(
+	"/dashboard-stats",
+	authMiddleware,
+	requireRole("HR", "ADMIN"),
+	analyticsController.getDashboardStats
+);
+
 export default router;

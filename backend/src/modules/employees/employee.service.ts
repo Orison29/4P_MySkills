@@ -68,3 +68,81 @@ export const assignManager = async (employeeId: string, managerId: string) => {
 		data: { managerId }
 	});
 };
+
+export const getEmployeeAssignments = async (userId: string) => {
+	const profile = await prisma.employeeProfile.findUnique({
+		where: { userId }
+	});
+
+	if (!profile) {
+		return {
+			active: [],
+			past: []
+		};
+	}
+
+	const activeAssignments = await prisma.employeeProjectAssignment.findMany({
+		where: {
+			employeeId: profile.id,
+			releasedAt: null
+		},
+		include: {
+			project: true,
+			deliverable: true
+		},
+		orderBy: {
+			assignedAt: 'desc'
+		}
+	});
+
+	const pastAssignments = await prisma.employeeProjectAssignment.findMany({
+		where: {
+			employeeId: profile.id,
+			releasedAt: { not: null }
+		},
+		include: {
+			project: true,
+			deliverable: true
+		},
+		orderBy: {
+			releasedAt: 'desc'
+		}
+	});
+
+	return {
+		active: activeAssignments,
+		past: pastAssignments
+	};
+};
+
+export const getMyTeam = async (managerUserId: string) => {
+	const managerProfile = await prisma.employeeProfile.findUnique({
+		where: { userId: managerUserId }
+	});
+
+	if (!managerProfile) {
+		return [];
+	}
+
+	return prisma.employeeProfile.findMany({
+		where: {
+			managerId: managerProfile.id
+		},
+		include: {
+			department: true,
+			user: {
+				select: {
+					email: true
+				}
+			},
+			employeeSkills: {
+				include: {
+					skill: true
+				}
+			}
+		},
+		orderBy: {
+			fullname: 'asc'
+		}
+	});
+};

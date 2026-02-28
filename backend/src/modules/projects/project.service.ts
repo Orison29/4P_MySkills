@@ -25,6 +25,28 @@ export const getAllProjects = async () => {
 	});
 };
 
+export const getProjectById = async (projectId: string) => {
+	return prisma.project.findUnique({
+		where: { id: projectId },
+		include: {
+			deliverables: {
+				include: {
+					requiredSkills: {
+						include: {
+							skill: true
+						}
+					}
+				}
+			},
+			assignments: {
+				include: {
+					employee: true
+				}
+			}
+		}
+	});
+};
+
 export const updateProjectStatus = async (
 	projectId: string,
 	status: ProjectStatus

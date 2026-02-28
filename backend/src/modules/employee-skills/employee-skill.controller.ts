@@ -101,6 +101,7 @@ export const getPendingRatingsHandler = async (
 	try {
 		const managerUserId = req.user!.userId;
 		const ratings = await getPendingRatingsForManager(managerUserId);
+		console.log("MANAGER RATINGS RAW: ", JSON.stringify(ratings, null, 2));
 		res.status(200).json(ratings);
 	} catch (error) {
 		const message =
