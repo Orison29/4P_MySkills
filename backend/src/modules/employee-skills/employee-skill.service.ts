@@ -1,5 +1,6 @@
 import { SkillRatingStatus, SkillChangeType } from "@prisma/client";
 import { prisma } from "../../utils/db";
+import { trackSkillSubmissionInActiveCampaigns } from "../assessment-campaigns/assessment-campaign.service";
 
 // Helper function to log skill progress
 const logSkillProgress = async (
@@ -104,6 +105,8 @@ export const createSelfRating = async (
 		SkillChangeType.INITIAL_RATING
 	);
 
+	await trackSkillSubmissionInActiveCampaigns(employeeProfile.id, skillId);
+
 	return newRating;
 };
 
@@ -159,6 +162,8 @@ export const updateSelfRating = async (
 		selfRating,
 		SkillChangeType.SELF_UPDATED
 	);
+
+	await trackSkillSubmissionInActiveCampaigns(employeeProfile.id, rating.skillId);
 
 	return updatedRating;
 };

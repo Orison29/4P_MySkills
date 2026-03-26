@@ -10,6 +10,7 @@ import deliverableRoutes from "../modules/deliverables/deliverable.routes";
 import deliverableSkillRoutes from "../modules/deliverable-skills/deliverable-skill.routes";
 import recommendationRoutes from "../modules/recommendations/recommendation.routes";
 import analyticsRoutes from "../modules/analytics/analytics.routes";
+import assessmentCampaignRoutes from "../modules/assessment-campaigns/assessment-campaign.routes";
 
 export const registerRoutes = (app: Express) => {
   app.use("/api/auth", authRoutes);
@@ -23,6 +24,7 @@ export const registerRoutes = (app: Express) => {
   app.use("/api", recommendationRoutes);
   app.use("/api", assignmentRoutes);
   app.use("/api/analytics", analyticsRoutes);
+  app.use("/api/assessment-campaigns", assessmentCampaignRoutes);
 
   app.get("/health", (_, res) => {
     res.json({ status: "ok" });

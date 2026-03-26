@@ -52,6 +52,7 @@ model User {
   reviewedAssignments  AssignmentRequest[] @relation("AssignmentReviewer")
   reviewedSkills       EmployeeSkill[]     @relation("SkillReviewer")
   skillProgressReviews SkillProgressLog[]  @relation("ProgressReviewer")
+  createdSkillAssessmentCampaigns SkillAssessmentCampaign[] @relation("SkillAssessmentCampaignCreator")
 }
 
 model Department {
@@ -77,6 +78,7 @@ model EmployeeProfile {
   assignmentRequests AssignmentRequest[]
   employeeSkills    EmployeeSkill[]
   skillProgressLogs SkillProgressLog[]
+  campaignSkillSubmissions CampaignSkillSubmission[]
 }
 
 model Project {
@@ -156,6 +158,7 @@ model Skill {
   employeeSkills    EmployeeSkill[]
   deliverableSkills DeliverableSkill[]
   skillProgressLogs SkillProgressLog[]
+  campaignSubmissions CampaignSkillSubmission[]
 }
 
 model DeliverableSkill {
@@ -213,4 +216,37 @@ model SkillProgressLog {
   @@index([employeeId])
   @@index([skillId])
   @@index([changedAt])
+}
+
+model SkillAssessmentCampaign {
+  id                String   @id @default(uuid()) @db.Uuid
+  title             String
+  startAt           DateTime
+  endAt             DateTime
+  minSkillsRequired Int      @default(2)
+  createdBy         String   @db.Uuid
+  createdAt         DateTime @default(now())
+
+  creator     User                      @relation("SkillAssessmentCampaignCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  submissions CampaignSkillSubmission[]
+
+  @@index([startAt])
+  @@index([endAt])
+}
+
+model CampaignSkillSubmission {
+  id               String   @id @default(uuid()) @db.Uuid
+  campaignId       String   @db.Uuid
+  employeeId       String   @db.Uuid
+  skillId          String   @db.Uuid
+  firstSubmittedAt DateTime @default(now())
+
+  campaign SkillAssessmentCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  employee EmployeeProfile         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  skill    Skill                   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, employeeId, skillId])
+  @@index([campaignId])
+  @@index([employeeId])
+  @@index([skillId])
 }
