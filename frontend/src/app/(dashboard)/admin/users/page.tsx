@@ -3,27 +3,56 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/analytics.api';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AddEmployeeModal } from '@/components/admin/add-employee-modal';
 import { AssignManagerModal } from '@/components/admin/assign-manager-modal';
 import { ChangeRoleModal } from '@/components/admin/change-role-modal';
-import { ShieldCheck, Mail, Building, User, Edit3, Search, Filter, UserPlus } from 'lucide-react';
+import { adminApi } from '@/api/admin.api';
+import { toast } from 'sonner';
+import { ShieldCheck, Building, User, Edit3, Search, Filter, UserPlus } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [activeAssignManagerUserId, setActiveAssignManagerUserId] = useState<string | null>(null);
   const [activeChangeRoleUserId, setActiveChangeRoleUserId] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<'ALL' | 'ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'>('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState<'ALL' | string>('ALL');
+  const queryClient = useQueryClient();
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['analytics', 'employees', 'overview'],
     queryFn: analyticsApi.getEmployeesOverview,
   });
 
-  const filteredEmployees = employees?.filter(emp => 
-    emp.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.department?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const departmentOptions = useMemo(() => {
+    const values = new Set<string>();
+    (employees ?? []).forEach((emp) => {
+      values.add(emp.department || 'Unassigned');
+    });
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [employees]);
+
+  const filteredEmployees = (employees ?? []).filter((emp) => {
+    const name = (emp.fullname || '').toLowerCase();
+    const department = (emp.department || 'Unassigned').toLowerCase();
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = name.includes(search) || department.includes(search);
+    const matchesRole = roleFilter === 'ALL' || emp.role === roleFilter;
+    const matchesDepartment = departmentFilter === 'ALL' || (emp.department || 'Unassigned') === departmentFilter;
+    return matchesSearch && matchesRole && matchesDepartment;
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (employeeId: string) => adminApi.deleteUser(employeeId),
+    onSuccess: () => {
+      toast.success('User deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'employees', 'overview'] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.error || 'Failed to delete user');
+    }
+  });
 
   return (
     <div className="space-y-6">
@@ -52,16 +81,43 @@ export default function AdminUsersPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border rounded-md text-sm font-medium hover:bg-zinc-50 transition bg-white ">
-          <Filter className="w-4 h-4" /> Filters
-        </button>
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 border rounded-md text-sm font-medium bg-white">
+            <Filter className="w-4 h-4" />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as 'ALL' | 'ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE')}
+              className="bg-transparent outline-none"
+            >
+              <option value="ALL">All Roles</option>
+              <option value="ADMIN">Admin</option>
+              <option value="HR">HR</option>
+              <option value="MANAGER">Manager</option>
+              <option value="EMPLOYEE">Employee</option>
+            </select>
+          </div>
+
+          <div className="px-3 py-2 border rounded-md text-sm font-medium bg-white">
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="bg-transparent outline-none"
+            >
+              <option value="ALL">All Departments</option>
+              {departmentOptions.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center p-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      ) : filteredEmployees?.length === 0 ? (
+      ) : filteredEmployees.length === 0 ? (
         <div className="text-center p-12 bg-white border rounded-xl shadow-sm">
           <ShieldCheck className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-zinc-900 ">No users found</h3>
@@ -81,7 +137,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredEmployees?.map((emp) => (
+                {filteredEmployees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-zinc-50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -137,6 +193,17 @@ export default function AdminUsersPage() {
                         >
                           Skills
                         </Link>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete user ${emp.fullname}? This action cannot be undone.`)) {
+                              deleteMutation.mutate(emp.id);
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                          className="text-red-600 hover:text-red-700 transition disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>

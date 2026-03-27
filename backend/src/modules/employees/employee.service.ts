@@ -1,4 +1,5 @@
 import { prisma } from "../../utils/db";
+import { Prisma } from "@prisma/client";
 
 export const createEmployeeProfile = async (
 	userId: string,
@@ -145,4 +146,40 @@ export const getMyTeam = async (managerUserId: string) => {
 			fullname: 'asc'
 		}
 	});
+};
+
+export const deleteUserByEmployeeId = async (employeeId: string) => {
+	const employee = await prisma.employeeProfile.findUnique({
+		where: { id: employeeId },
+		select: { id: true, userId: true }
+	});
+
+	if (!employee) {
+		throw new Error("Employee not found");
+	}
+
+	try {
+		await prisma.$transaction(async (tx) => {
+			// Unlink direct reports first to avoid self-relation constraint issues.
+			await tx.employeeProfile.updateMany({
+				where: { managerId: employeeId },
+				data: { managerId: null }
+			});
+
+			await tx.user.delete({
+				where: { id: employee.userId }
+			});
+		});
+	} catch (error) {
+		if (
+			error instanceof Prisma.PrismaClientKnownRequestError &&
+			error.code === "P2003"
+		) {
+			throw new Error("User cannot be deleted due to linked records");
+		}
+
+		throw error;
+	}
+
+	return { message: "User deleted successfully" };
 };

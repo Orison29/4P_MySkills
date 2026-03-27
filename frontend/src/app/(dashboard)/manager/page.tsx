@@ -18,6 +18,8 @@ export default function ManagerDashboard() {
   const { data: pendingReviews, isLoading: isReviewsLoading } = useQuery({
     queryKey: ['manager', 'reviews', 'pending'],
     queryFn: managerApi.getPendingSkillReviews,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: pendingRequests, isLoading: isRequestsLoading } = useQuery({

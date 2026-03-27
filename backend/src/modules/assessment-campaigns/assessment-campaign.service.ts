@@ -1,3 +1,4 @@
+import { Role } from "@prisma/client";
 import { prisma } from "../../utils/db";
 
 type CreateCampaignInput = {
@@ -7,6 +8,8 @@ type CreateCampaignInput = {
 	minSkillsRequired: number;
 	createdBy: string;
 };
+
+type CampaignState = "SCHEDULED" | "ACTIVE" | "CLOSED";
 
 const getCampaignStatus = (startAt: Date, endAt: Date) => {
 	const now = new Date();
@@ -30,6 +33,9 @@ const getCompliantEmployeeSet = async (
 		where: {
 			campaignId,
 			employee: {
+				user: {
+					role: Role.EMPLOYEE
+				},
 				departmentId: {
 					in: departmentIds
 				}
@@ -130,6 +136,81 @@ export const listAssessmentCampaigns = async () => {
 	}));
 };
 
+export const updateAssessmentCampaignState = async (
+	campaignId: string,
+	state: CampaignState
+) => {
+	const campaign = await prisma.skillAssessmentCampaign.findUnique({
+		where: { id: campaignId }
+	});
+
+	if (!campaign) {
+		throw new Error("Campaign not found");
+	}
+
+	const now = new Date();
+	let startAt = campaign.startAt;
+	let endAt = campaign.endAt;
+
+	if (state === "CLOSED") {
+		endAt = new Date(now.getTime() - 60 * 1000);
+	}
+
+	if (state === "ACTIVE") {
+		if (startAt > now) {
+			startAt = new Date(now.getTime() - 60 * 1000);
+		}
+		if (endAt <= now) {
+			endAt = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+		}
+	}
+
+	if (state === "SCHEDULED") {
+		startAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+		if (endAt <= startAt) {
+			endAt = new Date(startAt.getTime() + 10 * 24 * 60 * 60 * 1000);
+		}
+	}
+
+	const updated = await prisma.skillAssessmentCampaign.update({
+		where: { id: campaignId },
+		data: {
+			startAt,
+			endAt
+		},
+		include: {
+			creator: {
+				select: {
+					id: true,
+					email: true
+				}
+			}
+		}
+	});
+
+	return {
+		...updated,
+		status: getCampaignStatus(updated.startAt, updated.endAt)
+	};
+};
+
+export const deleteAssessmentCampaign = async (campaignId: string) => {
+	const campaign = await prisma.skillAssessmentCampaign.findUnique({
+		where: { id: campaignId },
+		select: { id: true }
+	});
+
+	if (!campaign) {
+		throw new Error("Campaign not found");
+	}
+
+	await prisma.skillAssessmentCampaign.delete({
+		where: { id: campaignId }
+	});
+
+	return { message: "Campaign deleted successfully" };
+};
+
 export const getCampaignCoverageAnalytics = async (campaignId: string) => {
 	const campaign = await prisma.skillAssessmentCampaign.findUnique({
 		where: { id: campaignId }
@@ -142,6 +223,11 @@ export const getCampaignCoverageAnalytics = async (campaignId: string) => {
 	const departments = await prisma.department.findMany({
 		include: {
 			employees: {
+				where: {
+					user: {
+						role: Role.EMPLOYEE
+					}
+				},
 				select: {
 					id: true
 				}
@@ -260,6 +346,11 @@ export const getDepartmentEmployeeCoverage = async (
 		where: { id: departmentId },
 		include: {
 			employees: {
+				where: {
+					user: {
+						role: Role.EMPLOYEE
+					}
+				},
 				include: {
 					user: {
 						select: {

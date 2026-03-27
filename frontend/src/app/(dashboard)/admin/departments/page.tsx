@@ -25,6 +25,16 @@ export default function AdminDepartmentsPage() {
     onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to create department')
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (departmentId: string) => adminApi.deleteDepartment(departmentId),
+    onSuccess: () => {
+      toast.success('Department deleted');
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'employees', 'overview'] });
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.error || 'Failed to delete department')
+  });
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between">
@@ -77,6 +87,18 @@ export default function AdminDepartmentsPage() {
                     </p>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => {
+                    if (confirm(`Delete department ${dept.name}?`)) {
+                      deleteMutation.mutate(dept.id);
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="text-sm font-medium text-red-600 hover:text-red-700 transition disabled:opacity-50"
+                >
+                  Delete
+                </button>
               </div>
             ))}
           </div>

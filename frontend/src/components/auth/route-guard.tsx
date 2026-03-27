@@ -9,22 +9,23 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const isPublicAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated && !pathname.startsWith('/login')) {
+    if (mounted && !isAuthenticated && !isPublicAuthRoute) {
       router.push('/login');
     }
-  }, [isAuthenticated, pathname, router, mounted]);
+  }, [isAuthenticated, isPublicAuthRoute, router, mounted]);
 
   if (!mounted) {
     return null; // Prevent hydration errors
   }
 
-  if (!isAuthenticated && !pathname.startsWith('/login')) {
+  if (!isAuthenticated && !isPublicAuthRoute) {
     return null;
   }
 

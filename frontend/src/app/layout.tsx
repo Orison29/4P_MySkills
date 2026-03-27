@@ -33,7 +33,7 @@ export default function RootLayout({
         <QueryProvider>
           <RouteGuard>
             {children}
-            <Toaster position="top-right" richColors />
+            <Toaster position="bottom-left" richColors />
           </RouteGuard>
         </QueryProvider>
       </body>

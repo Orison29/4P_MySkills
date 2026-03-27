@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/api/auth.api';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
@@ -114,6 +115,13 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <p className="mt-6 text-center text-sm text-zinc-600">
+          Do not have an account?{' '}
+          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-700">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { Role } from "@prisma/client";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
-import { assignManagerHandler, createEmployeeHandler, getMyAssignmentsHandler, getMyTeamHandler, changeRoleHandler } from "./employee.controller";
+import { assignManagerHandler, createEmployeeHandler, getMyAssignmentsHandler, getMyTeamHandler, changeRoleHandler, deleteUserHandler } from "./employee.controller";
 const router = Router();
 
 router.post(
@@ -38,6 +38,13 @@ router.patch(
 	authMiddleware,
 	requireRole(Role.ADMIN),
 	changeRoleHandler
+);
+
+router.delete(
+	"/:id",
+	authMiddleware,
+	requireRole(Role.ADMIN),
+	deleteUserHandler
 );
 
 export default router;

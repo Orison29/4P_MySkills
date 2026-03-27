@@ -12,6 +12,11 @@ export const adminApi = {
     return response.data;
   },
 
+  deleteDepartment: async (departmentId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/departments/${departmentId}`);
+    return response.data;
+  },
+
   registerUser: async (data: any): Promise<any> => {
     const response = await apiClient.post<any>('/auth/register', data);
     return response.data;
@@ -29,6 +34,11 @@ export const adminApi = {
 
   changeUserRole: async (employeeId: string, role: string): Promise<any> => {
     const response = await apiClient.patch<any>(`/employees/${employeeId}/role`, { role });
+    return response.data;
+  },
+
+  deleteUser: async (employeeId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/employees/${employeeId}`);
     return response.data;
   }
 };

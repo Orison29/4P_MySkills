@@ -4,10 +4,12 @@ import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
 import {
 	createAssessmentCampaignHandler,
+	deleteAssessmentCampaignHandler,
 	getCampaignCoverageAnalyticsHandler,
 	getDepartmentEmployeeCoverageHandler,
 	getMyActiveCampaignProgressHandler,
-	listAssessmentCampaignsHandler
+	listAssessmentCampaignsHandler,
+	updateAssessmentCampaignStateHandler
 } from "./assessment-campaign.controller";
 
 const router = Router();
@@ -22,6 +24,16 @@ router.get(
 
 router.post("/", requireRole(Role.HR), createAssessmentCampaignHandler);
 router.get("/", requireRole(Role.HR), listAssessmentCampaignsHandler);
+router.patch(
+	"/:campaignId/state",
+	requireRole(Role.HR),
+	updateAssessmentCampaignStateHandler
+);
+router.delete(
+	"/:campaignId",
+	requireRole(Role.HR),
+	deleteAssessmentCampaignHandler
+);
 router.get(
 	"/:campaignId/coverage",
 	requireRole(Role.HR),

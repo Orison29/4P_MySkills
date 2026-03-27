@@ -13,6 +13,8 @@ export default function PendingReviewsPage() {
   const { data: pendingReviews, isLoading } = useQuery({
     queryKey: ['manager', 'reviews', 'pending'],
     queryFn: managerApi.getPendingSkillReviews,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
   });
 
   const reviewMutation = useMutation({

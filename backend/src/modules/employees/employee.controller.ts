@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Role } from "@prisma/client";
-import { assignManager, createEmployeeProfile, getEmployeeAssignments, getMyTeam } from "./employee.service";
+import { assignManager, createEmployeeProfile, deleteUserByEmployeeId, getEmployeeAssignments, getMyTeam } from "./employee.service";
 
 export const createEmployeeHandler = async (req: Request, res: Response) => {
 	try {
@@ -110,6 +110,30 @@ export const getMyTeamHandler = async (req: Request, res: Response) => {
 		res.status(200).json(team);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Internal server error";
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const deleteUserHandler = async (req: Request, res: Response) => {
+	try {
+		const rawId = req.params.id;
+		const employeeId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+		const result = await deleteUserByEmployeeId(employeeId);
+		res.status(200).json(result);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Internal server error";
+
+		if (message === "Employee not found") {
+			res.status(404).json({ error: message });
+			return;
+		}
+
+		if (message === "User cannot be deleted due to linked records") {
+			res.status(409).json({ error: message });
+			return;
+		}
+
 		res.status(500).json({ error: "Internal server error" });
 	}
 };

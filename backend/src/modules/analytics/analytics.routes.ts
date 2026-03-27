@@ -36,4 +36,11 @@ router.get(
 	analyticsController.getDashboardStats
 );
 
+router.get(
+	"/skill-spectrum",
+	authMiddleware,
+	requireRole("HR", "ADMIN"),
+	analyticsController.getSkillSpectrumByDepartment
+);
+
 export default router;

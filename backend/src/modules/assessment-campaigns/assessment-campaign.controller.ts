@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import {
 	createAssessmentCampaign,
+	deleteAssessmentCampaign,
 	getCampaignCoverageAnalytics,
 	getDepartmentEmployeeCoverage,
 	getMyActiveCampaignProgress,
-	listAssessmentCampaigns
+	listAssessmentCampaigns,
+	updateAssessmentCampaignState
 } from "./assessment-campaign.service";
 
 export const createAssessmentCampaignHandler = async (
@@ -123,6 +125,62 @@ export const getMyActiveCampaignProgressHandler = async (
 			error instanceof Error ? error.message : "Internal server error";
 
 		if (message === "Employee profile not found") {
+			res.status(404).json({ error: message });
+			return;
+		}
+
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const updateAssessmentCampaignStateHandler = async (
+	req: Request,
+	res: Response
+) => {
+	try {
+		const campaignId = Array.isArray(req.params.campaignId)
+			? req.params.campaignId[0]
+			: req.params.campaignId;
+		const { state } = req.body as {
+			state: "SCHEDULED" | "ACTIVE" | "CLOSED";
+		};
+
+		if (!["SCHEDULED", "ACTIVE", "CLOSED"].includes(state)) {
+			res.status(400).json({ error: "Invalid campaign state" });
+			return;
+		}
+
+		const updated = await updateAssessmentCampaignState(campaignId, state);
+		res.status(200).json(updated);
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Internal server error";
+
+		if (message === "Campaign not found") {
+			res.status(404).json({ error: message });
+			return;
+		}
+
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const deleteAssessmentCampaignHandler = async (
+	req: Request,
+	res: Response
+) => {
+	try {
+		const campaignId = Array.isArray(req.params.campaignId)
+			? req.params.campaignId[0]
+			: req.params.campaignId;
+
+		const result = await deleteAssessmentCampaign(campaignId);
+		res.status(200).json(result);
+	} catch (error) {
+		const message =
+			error instanceof Error ? error.message : "Internal server error";
+
+		if (message === "Campaign not found") {
 			res.status(404).json({ error: message });
 			return;
 		}

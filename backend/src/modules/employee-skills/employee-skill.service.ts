@@ -140,15 +140,18 @@ export const updateSelfRating = async (
 		throw new Error("Unauthorized");
 	}
 
-	if (rating.status !== SkillRatingStatus.PENDING) {
-		throw new Error("Cannot update reviewed rating");
-	}
-
 	const previousRating = rating.selfRating;
 
 	const updatedRating = await prisma.employeeSkill.update({
 		where: { id: ratingId },
-		data: { selfRating },
+		data: {
+			selfRating,
+			status: SkillRatingStatus.PENDING,
+			approvedRating: null,
+			reviewedBy: null,
+			reviewedAt: null,
+			reviewComment: null
+		},
 		include: {
 			skill: true
 		}

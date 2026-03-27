@@ -42,3 +42,25 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 		res.status(500).json({ error: error.message });
 	}
 };
+
+export const getSkillSpectrumByDepartment = async (req: Request, res: Response) => {
+	try {
+		const rawSkillId = req.query.skillId;
+		const skillId = Array.isArray(rawSkillId) ? rawSkillId[0] : rawSkillId;
+
+		if (!skillId || typeof skillId !== "string") {
+			res.status(400).json({ error: "skillId is required" });
+			return;
+		}
+
+		const data = await analyticsService.getSkillSpectrumByDepartment(skillId);
+		res.status(200).json(data);
+	} catch (error: any) {
+		if (error?.message === "Skill not found") {
+			res.status(404).json({ error: error.message });
+			return;
+		}
+
+		res.status(500).json({ error: error?.message || "Internal server error" });
+	}
+};

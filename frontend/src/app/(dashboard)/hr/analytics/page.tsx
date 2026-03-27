@@ -2,14 +2,104 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/analytics.api';
-import { LineChart, LayoutDashboard, Calendar } from 'lucide-react';
+import { skillsApi } from '@/api/skills.api';
+import { LineChart, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 
 export default function HRAnalyticsPage() {
+  const [selectedSkillId, setSelectedSkillId] = useState<string>('');
+
   const { data: employees, isLoading } = useQuery({
     queryKey: ['analytics', 'employees', 'overview'],
     queryFn: analyticsApi.getEmployeesOverview,
   });
+
+  const { data: skills, isLoading: isSkillsLoading } = useQuery({
+    queryKey: ['skills'],
+    queryFn: skillsApi.getSkills,
+  });
+
+  useEffect(() => {
+    if (!selectedSkillId && skills?.length) {
+      setSelectedSkillId(skills[0].id);
+    }
+  }, [skills, selectedSkillId]);
+
+  const { data: skillSpectrum, isLoading: isSkillSpectrumLoading } = useQuery({
+    queryKey: ['analytics', 'skill-spectrum', selectedSkillId],
+    queryFn: () => analyticsApi.getSkillSpectrumByDepartment(selectedSkillId),
+    enabled: !!selectedSkillId,
+  });
+
+  const multiSkillRows = useMemo(() => {
+    const list = employees ?? [];
+    const byDepartment = new Map<string, { department: string; headcount: number; atLeast2Count: number; atMost1Count: number }>();
+
+    list.forEach((emp) => {
+      const department = emp.department || 'Unassigned';
+      const totalSkills = Number(emp.totalSkills ?? 0);
+
+      if (!byDepartment.has(department)) {
+        byDepartment.set(department, {
+          department,
+          headcount: 0,
+          atLeast2Count: 0,
+          atMost1Count: 0,
+        });
+      }
+
+      const row = byDepartment.get(department)!;
+      row.headcount += 1;
+
+      if (totalSkills >= 2) {
+        row.atLeast2Count += 1;
+      } else {
+        row.atMost1Count += 1;
+      }
+    });
+
+    const rows = Array.from(byDepartment.values())
+      .map((row) => {
+        const atLeast2Pct = row.headcount > 0 ? Math.round((row.atLeast2Count / row.headcount) * 100) : 0;
+        const atMost1Pct = row.headcount > 0 ? Math.round((row.atMost1Count / row.headcount) * 100) : 0;
+        return {
+          ...row,
+          atLeast2Pct,
+          atMost1Pct,
+        };
+      })
+      .sort((a, b) => a.department.localeCompare(b.department));
+
+    const total = rows.reduce(
+      (acc, row) => {
+        acc.headcount += row.headcount;
+        acc.atLeast2Count += row.atLeast2Count;
+        acc.atMost1Count += row.atMost1Count;
+        return acc;
+      },
+      { headcount: 0, atLeast2Count: 0, atMost1Count: 0 }
+    );
+
+    const totalRow = {
+      department: 'Total',
+      headcount: total.headcount,
+      atLeast2Count: total.atLeast2Count,
+      atMost1Count: total.atMost1Count,
+      atLeast2Pct: total.headcount > 0 ? Math.round((total.atLeast2Count / total.headcount) * 100) : 0,
+      atMost1Pct: total.headcount > 0 ? Math.round((total.atMost1Count / total.headcount) * 100) : 0,
+    };
+
+    return { rows, totalRow };
+  }, [employees]);
+
+  const chartRows = useMemo(() => {
+    const base = [...multiSkillRows.rows];
+    if (multiSkillRows.totalRow.headcount > 0) {
+      base.push(multiSkillRows.totalRow);
+    }
+    return base;
+  }, [multiSkillRows]);
 
   return (
     <div className="space-y-6">
@@ -46,16 +136,317 @@ export default function HRAnalyticsPage() {
           </div>
         </div>
       </div>
-      
-      {/* Placeholder for complex charts if we add a charting library later */}
-      <div className="bg-white border rounded-xl shadow-sm p-6 mt-6 min-h-[400px] flex items-center justify-center border-dashed">
-         <div className="text-center max-w-sm">
-          <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-             <LineChart className="w-8 h-8" />
+
+      <div className="bg-white border rounded-xl shadow-sm p-6 space-y-5">
+        <div>
+          <h2 className="text-xl font-semibold">Department Wise Multi Skill Dashboard</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Independent of campaigns. Shows how many employees in each department have 2 or more skills.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500">Loading dashboard...</div>
+        ) : chartRows.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500">No employee skill data available.</div>
+        ) : (
+          <>
+            <StackedMultiSkillChart rows={chartRows} />
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-zinc-50 text-zinc-600">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium border">Department</th>
+                    <th className="text-right px-4 py-3 font-medium border">Headcount</th>
+                    <th className="text-right px-4 py-3 font-medium border">&gt;=2</th>
+                    <th className="text-right px-4 py-3 font-medium border">&lt;=1</th>
+                    <th className="text-right px-4 py-3 font-medium border">&gt;=2 %</th>
+                    <th className="text-right px-4 py-3 font-medium border">&lt;=1 %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {multiSkillRows.rows.map((row) => (
+                    <tr key={row.department} className="border-t">
+                      <td className="px-4 py-3 border font-medium">{row.department}</td>
+                      <td className="px-4 py-3 border text-right">{row.headcount}</td>
+                      <td className="px-4 py-3 border text-right text-emerald-700">{row.atLeast2Count}</td>
+                      <td className="px-4 py-3 border text-right text-red-700">{row.atMost1Count}</td>
+                      <td className="px-4 py-3 border text-right text-emerald-700">{row.atLeast2Pct}%</td>
+                      <td className="px-4 py-3 border text-right text-red-700">{row.atMost1Pct}%</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-zinc-50 font-semibold">
+                    <td className="px-4 py-3 border">{multiSkillRows.totalRow.department}</td>
+                    <td className="px-4 py-3 border text-right">{multiSkillRows.totalRow.headcount}</td>
+                    <td className="px-4 py-3 border text-right text-emerald-700">{multiSkillRows.totalRow.atLeast2Count}</td>
+                    <td className="px-4 py-3 border text-right text-red-700">{multiSkillRows.totalRow.atMost1Count}</td>
+                    <td className="px-4 py-3 border text-right text-emerald-700">{multiSkillRows.totalRow.atLeast2Pct}%</td>
+                    <td className="px-4 py-3 border text-right text-red-700">{multiSkillRows.totalRow.atMost1Pct}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="bg-white border rounded-xl shadow-sm p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-semibold">Skill Spectrum by Department</h2>
+            <p className="text-sm text-zinc-500 mt-1">
+              Select a skill to see how many employees in each department are at Level 0 to Level 5.
+            </p>
           </div>
-          <h3 className="text-lg font-bold mb-2">Organization Skill Growth</h3>
-          <p className="text-zinc-500 text-sm mb-6">Connect a charting library (like Recharts or Chart.js) to visualize aggregate skill improvements over time.</p>
-         </div>
+
+          <div className="min-w-64">
+            <label className="text-xs text-zinc-500">Skill</label>
+            <select
+              className="mt-1 w-full rounded-md border p-2 text-sm bg-white"
+              value={selectedSkillId}
+              onChange={(e) => setSelectedSkillId(e.target.value)}
+              disabled={isSkillsLoading || !skills?.length}
+            >
+              {(skills ?? []).map((skill) => (
+                <option key={skill.id} value={skill.id}>{skill.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {isSkillSpectrumLoading || isSkillsLoading ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500">Loading skill spectrum...</div>
+        ) : !skillSpectrum?.departments?.length ? (
+          <div className="h-64 flex items-center justify-center text-zinc-500">No skill spectrum data available.</div>
+        ) : (
+          <>
+            <SkillSpectrumChart rows={skillSpectrum.departments} />
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-zinc-50 text-zinc-600">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium border">Department</th>
+                    <th className="text-right px-4 py-3 font-medium border">Headcount</th>
+                    <th className="text-right px-4 py-3 font-medium border">L0</th>
+                    <th className="text-right px-4 py-3 font-medium border">L1</th>
+                    <th className="text-right px-4 py-3 font-medium border">L2</th>
+                    <th className="text-right px-4 py-3 font-medium border">L3</th>
+                    <th className="text-right px-4 py-3 font-medium border">L4</th>
+                    <th className="text-right px-4 py-3 font-medium border">L5</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {skillSpectrum.departments.map((row: any) => (
+                    <tr key={row.departmentId} className="border-t">
+                      <td className="px-4 py-3 border font-medium">{row.departmentName}</td>
+                      <td className="px-4 py-3 border text-right">{row.headcount}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level0}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level1}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level2}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level3}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level4}</td>
+                      <td className="px-4 py-3 border text-right">{row.levels.level5}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SkillSpectrumChart({ rows }: { rows: any[] }) {
+  const width = Math.max(760, rows.length * 140);
+  const height = 380;
+  const leftPadding = 42;
+  const rightPadding = 24;
+  const topPadding = 20;
+  const bottomPadding = 110;
+  const chartWidth = width - leftPadding - rightPadding;
+  const chartHeight = height - topPadding - bottomPadding;
+  const barGap = 18;
+  const barWidth = Math.max(22, (chartWidth - barGap * (rows.length - 1)) / rows.length);
+  const maxY = Math.max(
+    1,
+    ...rows.map((row) =>
+      row.levels.level0 +
+      row.levels.level1 +
+      row.levels.level2 +
+      row.levels.level3 +
+      row.levels.level4 +
+      row.levels.level5
+    )
+  );
+
+  const colors: Record<string, string> = {
+    level0: '#2563eb',
+    level1: '#ef4444',
+    level2: '#84cc16',
+    level3: '#7c3aed',
+    level4: '#06b6d4',
+    level5: '#f59e0b',
+  };
+
+  const levelKeys = ['level0', 'level1', 'level2', 'level3', 'level4', 'level5'] as const;
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div className="min-w-190">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+          {Array.from({ length: 6 }).map((_, idx) => {
+            const tick = Math.round((idx / 5) * maxY);
+            const y = topPadding + chartHeight - (tick / maxY) * chartHeight;
+            return (
+              <g key={idx}>
+                <line x1={leftPadding} y1={y} x2={width - rightPadding} y2={y} stroke="#e4e4e7" strokeWidth="1" />
+                <text x={8} y={y + 4} fontSize="11" fill="#71717a">{tick}</text>
+              </g>
+            );
+          })}
+
+          {rows.map((row, index) => {
+            const x = leftPadding + index * (barWidth + barGap);
+            let runningHeight = 0;
+
+            return (
+              <g key={row.departmentId}>
+                {levelKeys.map((key) => {
+                  const value = Number(row.levels[key] ?? 0);
+                  const segmentHeight = (value / maxY) * chartHeight;
+                  const y = topPadding + chartHeight - runningHeight - segmentHeight;
+                  runningHeight += segmentHeight;
+
+                  if (value === 0) return null;
+
+                  return (
+                    <g key={`${row.departmentId}-${key}`}>
+                      <rect x={x} y={y} width={barWidth} height={segmentHeight} fill={colors[key]} rx={2} />
+                      {segmentHeight > 14 ? (
+                        <text x={x + barWidth / 2} y={y + segmentHeight / 2 + 3} textAnchor="middle" fontSize="10" fill="white">
+                          {value}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                })}
+
+                <text
+                  x={x + barWidth / 2}
+                  y={height - 26}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#71717a"
+                  transform={`rotate(-30 ${x + barWidth / 2} ${height - 26})`}
+                >
+                  {row.departmentName}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-600 mt-2 px-2">
+          {levelKeys.map((key, idx) => (
+            <div key={key} className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: colors[key] }} />
+              <span>Level {idx}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StackedMultiSkillChart({
+  rows,
+}: {
+  rows: Array<{
+    department: string;
+    atLeast2Pct: number;
+    atMost1Pct: number;
+  }>;
+}) {
+  const width = Math.max(760, rows.length * 140);
+  const height = 380;
+  const leftPadding = 42;
+  const rightPadding = 24;
+  const topPadding = 28;
+  const bottomPadding = 110;
+  const chartWidth = width - leftPadding - rightPadding;
+  const chartHeight = height - topPadding - bottomPadding;
+  const barGap = 18;
+  const barWidth = Math.max(22, (chartWidth - barGap * (rows.length - 1)) / rows.length);
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div className="min-w-190">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-80">
+          {[0, 20, 40, 60, 80, 100].map((tick) => {
+            const y = topPadding + chartHeight - (tick / 100) * chartHeight;
+            return (
+              <g key={tick}>
+                <line x1={leftPadding} y1={y} x2={width - rightPadding} y2={y} stroke="#e4e4e7" strokeWidth="1" />
+                <text x={8} y={y + 4} fontSize="11" fill="#71717a">
+                  {tick}%
+                </text>
+              </g>
+            );
+          })}
+
+          {rows.map((row, index) => {
+            const x = leftPadding + index * (barWidth + barGap);
+            const greenPct = Math.max(0, Math.min(100, row.atLeast2Pct));
+            const redPct = Math.max(0, Math.min(100, row.atMost1Pct));
+
+            const greenHeight = (greenPct / 100) * chartHeight;
+            const redHeight = (redPct / 100) * chartHeight;
+
+            const greenY = topPadding + chartHeight - greenHeight;
+            const redY = greenY - redHeight;
+
+            return (
+              <g key={row.department}>
+                <rect x={x} y={greenY} width={barWidth} height={greenHeight} fill="#84cc16" rx={2} />
+                <rect x={x} y={redY} width={barWidth} height={redHeight} fill="#ef4444" rx={2} />
+
+                <text x={x + barWidth / 2} y={greenY + Math.min(18, greenHeight / 2)} textAnchor="middle" fontSize="10" fill="#166534">
+                  {greenPct}%
+                </text>
+                <text x={x + barWidth / 2} y={redY + 12} textAnchor="middle" fontSize="10" fill="#991b1b">
+                  {redPct}%
+                </text>
+
+                <text
+                  x={x + barWidth / 2}
+                  y={height - 26}
+                  textAnchor="middle"
+                  fontSize="11"
+                  fill="#71717a"
+                  transform={`rotate(-30 ${x + barWidth / 2} ${height - 26})`}
+                >
+                  {row.department}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="flex items-center gap-6 text-sm text-zinc-600 mt-2 px-2">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-lime-500" />
+            <span>&gt;=2</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-red-500" />
+            <span>&lt;=1</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { prisma } from "../../utils/db";
+import { Role } from "@prisma/client";
 
 export const getEmployeeSkillProgress = async (employeeId: string) => {
 	const employee = await prisma.employeeProfile.findUnique({
@@ -150,6 +151,106 @@ export const getAllEmployeesOverview = async () => {
 			lastUpdated
 		};
 	});
+};
+
+export const getSkillSpectrumByDepartment = async (skillId: string) => {
+	const skill = await prisma.skill.findUnique({
+		where: { id: skillId },
+		select: { id: true, name: true }
+	});
+
+	if (!skill) {
+		throw new Error("Skill not found");
+	}
+
+	const departments = await prisma.department.findMany({
+		include: {
+			employees: {
+				where: {
+					user: {
+						role: Role.EMPLOYEE
+					}
+				},
+				include: {
+					employeeSkills: {
+						where: {
+							skillId
+						},
+						select: {
+							selfRating: true,
+							approvedRating: true
+						}
+					}
+				}
+			}
+		},
+		orderBy: {
+			name: "asc"
+		}
+	});
+
+	const rows = departments.map((department) => {
+		const levels = {
+			level0: 0,
+			level1: 0,
+			level2: 0,
+			level3: 0,
+			level4: 0,
+			level5: 0
+		};
+
+		department.employees.forEach((employee) => {
+			const rating = employee.employeeSkills[0]
+				? employee.employeeSkills[0].approvedRating ?? employee.employeeSkills[0].selfRating
+				: null;
+
+			if (!rating) {
+				levels.level0 += 1;
+				return;
+			}
+
+			if (rating <= 1) levels.level1 += 1;
+			else if (rating === 2) levels.level2 += 1;
+			else if (rating === 3) levels.level3 += 1;
+			else if (rating === 4) levels.level4 += 1;
+			else levels.level5 += 1;
+		});
+
+		return {
+			departmentId: department.id,
+			departmentName: department.name,
+			headcount: department.employees.length,
+			levels
+		};
+	});
+
+	const totals = rows.reduce(
+		(acc, row) => {
+			acc.headcount += row.headcount;
+			acc.level0 += row.levels.level0;
+			acc.level1 += row.levels.level1;
+			acc.level2 += row.levels.level2;
+			acc.level3 += row.levels.level3;
+			acc.level4 += row.levels.level4;
+			acc.level5 += row.levels.level5;
+			return acc;
+		},
+		{
+			headcount: 0,
+			level0: 0,
+			level1: 0,
+			level2: 0,
+			level3: 0,
+			level4: 0,
+			level5: 0
+		}
+	);
+
+	return {
+		skill,
+		departments: rows,
+		totals
+	};
 };
 
 export const getSkillProgressTimeline = async (

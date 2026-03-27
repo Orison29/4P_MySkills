@@ -14,5 +14,10 @@ export const analyticsApi = {
   getEmployeeSkillProgress: async (employeeId: string): Promise<any> => {
     const response = await apiClient.get<any>(`/analytics/employees/${employeeId}/skill-progress`);
     return response.data;
+  },
+
+  getSkillSpectrumByDepartment: async (skillId: string): Promise<any> => {
+    const response = await apiClient.get<any>(`/analytics/skill-spectrum?skillId=${skillId}`);
+    return response.data;
   }
 };

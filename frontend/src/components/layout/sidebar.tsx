@@ -7,6 +7,7 @@ import {
   Users, 
   Star, 
   BarChart, 
+  Megaphone,
   CheckSquare,
   FileText,
   UserCheck,
@@ -27,6 +28,7 @@ type NavLink = {
 const RoleLinks: Record<Role, NavLink[]> = {
   EMPLOYEE: [
     { title: 'Dashboard', href: '/employee', icon: LayoutDashboard },
+    { title: 'Skill Request', href: '/employee/skill-request', icon: CheckSquare },
     { title: 'My Skills', href: '/employee/skills', icon: Star },
     { title: 'My Assignments', href: '/employee/assignments', icon: Briefcase },
   ],
@@ -39,6 +41,7 @@ const RoleLinks: Record<Role, NavLink[]> = {
   HR: [
     { title: 'Dashboard', href: '/hr', icon: LayoutDashboard },
     { title: 'Projects', href: '/hr/projects', icon: Briefcase },
+    { title: 'Skill Campaigns', href: '/hr/campaigns', icon: Megaphone },
     { title: 'Employees', href: '/hr/employees', icon: Users },
     { title: 'Skills Catalog', href: '/hr/skills', icon: Star },
     { title: 'Analytics', href: '/hr/analytics', icon: BarChart },
