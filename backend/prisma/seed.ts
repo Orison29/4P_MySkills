@@ -1,7 +1,13 @@
 import 'dotenv/config';
-import { Role, SkillRatingStatus } from '@prisma/client';
+import { Role, SkillChangeType, SkillRatingStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { prisma } from '../src/utils/db';
+
+const daysAgo = (n: number): Date => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
 
 async function main() {
   console.log('Seeding structured demo data...');
@@ -274,6 +280,58 @@ async function main() {
           reviewComment: shouldBePending ? null : 'Reviewed in seed data',
         },
       });
+
+      // Seed SkillProgressLog history so learning-speed has >=2 points per series.
+      // Only create logs if none already exist for this employee+skill pair.
+      const existingLogs = await prisma.skillProgressLog.count({
+        where: { employeeId: employee.profileId, skillId: skill.id },
+      });
+
+      if (existingLogs === 0) {
+        // Spread initial timestamps so employees don't all start on the same day.
+        const spread = (i * 7 + s * 3) % 30;
+
+        // Point 1 – initial self-rating 90–120 days ago (lower than current).
+        const initialRating = Math.max(1, selfRating - 2);
+        await prisma.skillProgressLog.create({
+          data: {
+            employeeId: employee.profileId,
+            skillId: skill.id,
+            previousRating: null,
+            newRating: initialRating,
+            changeType: SkillChangeType.INITIAL_RATING,
+            changedAt: daysAgo(90 + spread),
+          },
+        });
+
+        // Point 2 – self-update 45–60 days ago (one step up).
+        const midRating = Math.min(5, initialRating + 1);
+        await prisma.skillProgressLog.create({
+          data: {
+            employeeId: employee.profileId,
+            skillId: skill.id,
+            previousRating: initialRating,
+            newRating: midRating,
+            changeType: SkillChangeType.SELF_UPDATED,
+            changedAt: daysAgo(45 + spread),
+          },
+        });
+
+        // Point 3 – manager review 7–21 days ago (approved or edited to current).
+        if (!shouldBePending) {
+          await prisma.skillProgressLog.create({
+            data: {
+              employeeId: employee.profileId,
+              skillId: skill.id,
+              previousRating: midRating,
+              newRating: selfRating,
+              changeType: SkillChangeType.MANAGER_APPROVED,
+              changedBy: employee.managerUserId,
+              changedAt: daysAgo(7 + (i + s) % 14),
+            },
+          });
+        }
+      }
     }
   }
 

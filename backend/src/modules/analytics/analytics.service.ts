@@ -1,6 +1,134 @@
 import { prisma } from "../../utils/db";
 import { Role } from "@prisma/client";
 
+type LearningCategory = "FAST" | "MODERATE" | "SLOW" | "NO_PROGRESS" | "REGRESSION";
+
+function categorizeLearningSpeed(score: number): LearningCategory {
+	if (score >= 0.03) return "FAST";
+	if (score >= 0.01) return "MODERATE";
+	if (score > 0) return "SLOW";
+	if (score === 0) return "NO_PROGRESS";
+	return "REGRESSION";
+}
+
+export const getLearningSpeed = async (startDate?: string, endDate?: string) => {
+	const employees = await prisma.employeeProfile.findMany({
+		where: { user: { role: Role.EMPLOYEE } },
+		select: {
+			id: true,
+			fullname: true,
+			department: { select: { id: true, name: true } }
+		}
+	});
+
+	if (employees.length === 0) {
+		return {
+			departments: [],
+			employees: [],
+			summary: { FAST: 0, MODERATE: 0, SLOW: 0, NO_PROGRESS: 0, REGRESSION: 0 }
+		};
+	}
+
+	const employeeIds = employees.map((e) => e.id);
+
+	const dateFilter =
+		startDate || endDate
+			? {
+					changedAt: {
+						...(startDate ? { gte: new Date(startDate) } : {}),
+						...(endDate ? { lte: new Date(endDate + "T23:59:59.999Z") } : {})
+					}
+			  }
+			: {};
+
+	const logs = await prisma.skillProgressLog.findMany({
+		where: { employeeId: { in: employeeIds }, ...dateFilter },
+		select: { employeeId: true, skillId: true, newRating: true, changedAt: true },
+		orderBy: { changedAt: "asc" }
+	});
+
+	// Group logs: employeeId -> skillId -> ordered entries
+	const byEmployee = new Map<
+		string,
+		Map<string, Array<{ newRating: number; changedAt: Date }>>
+	>();
+	for (const log of logs) {
+		if (!byEmployee.has(log.employeeId)) byEmployee.set(log.employeeId, new Map());
+		const bySkill = byEmployee.get(log.employeeId)!;
+		if (!bySkill.has(log.skillId)) bySkill.set(log.skillId, []);
+		bySkill.get(log.skillId)!.push({ newRating: log.newRating, changedAt: log.changedAt });
+	}
+
+	// Per-employee scores
+	const employeeResults = employees.map((emp) => {
+		const bySkill = byEmployee.get(emp.id);
+		const velocities: number[] = [];
+
+		if (bySkill) {
+			for (const skillLogs of bySkill.values()) {
+				if (skillLogs.length < 2) continue;
+				const first = skillLogs[0];
+				const last = skillLogs[skillLogs.length - 1];
+				const delta = last.newRating - first.newRating;
+				const days = Math.max(
+					1,
+					(last.changedAt.getTime() - first.changedAt.getTime()) / (1000 * 60 * 60 * 24)
+				);
+				velocities.push(delta / days);
+			}
+		}
+
+		const score =
+			velocities.length > 0
+				? velocities.reduce((s, v) => s + v, 0) / velocities.length
+				: 0;
+
+		return {
+			employeeId: emp.id,
+			fullname: emp.fullname,
+			department: emp.department?.name ?? "Unassigned",
+			score: parseFloat(score.toFixed(6)),
+			category: categorizeLearningSpeed(score),
+			validSkillCount: velocities.length
+		};
+	});
+
+	// Department aggregates
+	const deptMap = new Map<string, { scores: number[]; count: number }>();
+	for (const emp of employeeResults) {
+		if (!deptMap.has(emp.department)) deptMap.set(emp.department, { scores: [], count: 0 });
+		const entry = deptMap.get(emp.department)!;
+		entry.scores.push(emp.score);
+		entry.count += 1;
+	}
+
+	const departmentResults = Array.from(deptMap.entries())
+		.map(([name, { scores, count }]) => {
+			const avg = scores.reduce((s, v) => s + v, 0) / scores.length;
+			return {
+				department: name,
+				score: parseFloat(avg.toFixed(6)),
+				category: categorizeLearningSpeed(avg),
+				employeeCount: count
+			};
+		})
+		.sort((a, b) => a.department.localeCompare(b.department));
+
+	// Summary counts by category
+	const summary: Record<LearningCategory, number> = {
+		FAST: 0,
+		MODERATE: 0,
+		SLOW: 0,
+		NO_PROGRESS: 0,
+		REGRESSION: 0
+	};
+	for (const emp of employeeResults) {
+		summary[emp.category] += 1;
+	}
+
+	return { departments: departmentResults, employees: employeeResults, summary };
+};
+
 export const getEmployeeSkillProgress = async (employeeId: string) => {
 	const employee = await prisma.employeeProfile.findUnique({
 		where: { id: employeeId },

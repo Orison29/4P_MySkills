@@ -43,6 +43,29 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 	}
 };
 
+export const getLearningSpeed = async (req: Request, res: Response) => {
+	try {
+		const startDate =
+			typeof req.query.startDate === "string" ? req.query.startDate : undefined;
+		const endDate =
+			typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+
+		if (startDate && isNaN(Date.parse(startDate))) {
+			res.status(400).json({ error: "Invalid startDate" });
+			return;
+		}
+		if (endDate && isNaN(Date.parse(endDate))) {
+			res.status(400).json({ error: "Invalid endDate" });
+			return;
+		}
+
+		const data = await analyticsService.getLearningSpeed(startDate, endDate);
+		res.status(200).json(data);
+	} catch (error: any) {
+		res.status(500).json({ error: error?.message || "Internal server error" });
+	}
+};
+
 export const getSkillSpectrumByDepartment = async (req: Request, res: Response) => {
 	try {
 		const rawSkillId = req.query.skillId;

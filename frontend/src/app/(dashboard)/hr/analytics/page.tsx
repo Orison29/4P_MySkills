@@ -3,12 +3,32 @@
 import { useQuery } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/analytics.api';
 import { skillsApi } from '@/api/skills.api';
-import { LineChart, LayoutDashboard } from 'lucide-react';
+import { LineChart, LayoutDashboard, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
+type LearningCategory = 'FAST' | 'MODERATE' | 'SLOW' | 'NO_PROGRESS' | 'REGRESSION';
+
+const CATEGORY_COLORS: Record<LearningCategory, { bg: string; text: string; badge: string }> = {
+  FAST:        { bg: '#16a34a', text: 'text-green-700',  badge: 'bg-green-100 text-green-700' },
+  MODERATE:    { bg: '#2563eb', text: 'text-blue-700',   badge: 'bg-blue-100 text-blue-700' },
+  SLOW:        { bg: '#d97706', text: 'text-amber-700',  badge: 'bg-amber-100 text-amber-700' },
+  NO_PROGRESS: { bg: '#71717a', text: 'text-zinc-500',   badge: 'bg-zinc-100 text-zinc-500' },
+  REGRESSION:  { bg: '#dc2626', text: 'text-red-700',    badge: 'bg-red-100 text-red-700' },
+};
+
+const CATEGORY_LABELS: Record<LearningCategory, string> = {
+  FAST: 'Fast',
+  MODERATE: 'Moderate',
+  SLOW: 'Slow',
+  NO_PROGRESS: 'No Progress',
+  REGRESSION: 'Regression',
+};
+
 export default function HRAnalyticsPage() {
   const [selectedSkillId, setSelectedSkillId] = useState<string>('');
+  const [lsStartDate, setLsStartDate] = useState<string>('');
+  const [lsEndDate, setLsEndDate] = useState<string>('');
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['analytics', 'employees', 'overview'],
@@ -25,6 +45,11 @@ export default function HRAnalyticsPage() {
       setSelectedSkillId(skills[0].id);
     }
   }, [skills, selectedSkillId]);
+
+  const { data: learningSpeed, isLoading: isLsLoading, error: lsError } = useQuery({
+    queryKey: ['analytics', 'learning-speed', lsStartDate, lsEndDate],
+    queryFn: () => analyticsApi.getLearningSpeed(lsStartDate || undefined, lsEndDate || undefined),
+  });
 
   const { data: skillSpectrum, isLoading: isSkillSpectrumLoading } = useQuery({
     queryKey: ['analytics', 'skill-spectrum', selectedSkillId],
@@ -191,6 +216,139 @@ export default function HRAnalyticsPage() {
         )}
       </div>
 
+      {/* ── Learning Speed ── */}
+      <div className="bg-white border rounded-xl shadow-sm p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <Zap className="w-5 h-5 text-amber-500" />
+            <div>
+              <h2 className="text-xl font-semibold">Learning Speed</h2>
+              <p className="text-sm text-zinc-500 mt-0.5">
+                How fast employees improve skill ratings over time (velocity = rating delta / days).
+              </p>
+            </div>
+          </div>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">Start Date</label>
+              <input
+                type="date"
+                className="rounded-md border p-2 text-sm bg-white"
+                value={lsStartDate}
+                onChange={(e) => setLsStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 block mb-1">End Date</label>
+              <input
+                type="date"
+                className="rounded-md border p-2 text-sm bg-white"
+                value={lsEndDate}
+                onChange={(e) => setLsEndDate(e.target.value)}
+              />
+            </div>
+            {(lsStartDate || lsEndDate) && (
+              <button
+                className="text-xs text-zinc-400 hover:text-zinc-600 border rounded px-2 py-2"
+                onClick={() => { setLsStartDate(''); setLsEndDate(''); }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isLsLoading ? (
+          <div className="h-40 flex items-center justify-center text-zinc-500">Loading learning speed data...</div>
+        ) : lsError ? (
+          <div className="h-40 flex items-center justify-center text-red-500">Failed to load learning speed data.</div>
+        ) : !learningSpeed?.employees?.length ? (
+          <div className="h-40 flex items-center justify-center text-zinc-500">No data available for the selected range.</div>
+        ) : (
+          <>
+            {/* Summary badges */}
+            <div className="flex flex-wrap gap-3">
+              {(Object.keys(CATEGORY_LABELS) as LearningCategory[]).map((cat) => (
+                <div key={cat} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${CATEGORY_COLORS[cat].badge}`}>
+                  <span>{CATEGORY_LABELS[cat]}</span>
+                  <span className="font-bold">{learningSpeed.summary?.[cat] ?? 0}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Department chart + table */}
+            {learningSpeed.departments?.length > 0 && (
+              <>
+                <LearningSpeedChart rows={learningSpeed.departments} />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-zinc-50 text-zinc-600">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-medium border">Department</th>
+                        <th className="text-right px-4 py-3 font-medium border">Employees</th>
+                        <th className="text-right px-4 py-3 font-medium border">Avg Velocity</th>
+                        <th className="text-right px-4 py-3 font-medium border">Category</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {learningSpeed.departments.map((row: any) => (
+                        <tr key={row.department} className="border-t">
+                          <td className="px-4 py-3 border font-medium">{row.department}</td>
+                          <td className="px-4 py-3 border text-right">{row.employeeCount}</td>
+                          <td className={`px-4 py-3 border text-right font-mono ${CATEGORY_COLORS[row.category as LearningCategory]?.text}`}>
+                            {row.score.toFixed(4)}
+                          </td>
+                          <td className="px-4 py-3 border text-right">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[row.category as LearningCategory]?.badge}`}>
+                              {CATEGORY_LABELS[row.category as LearningCategory]}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+
+            {/* Employee table */}
+            <div>
+              <h3 className="text-base font-semibold mb-3">Employee Details</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="bg-zinc-50 text-zinc-600">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium border">Employee</th>
+                      <th className="text-left px-4 py-3 font-medium border">Department</th>
+                      <th className="text-right px-4 py-3 font-medium border">Skills Tracked</th>
+                      <th className="text-right px-4 py-3 font-medium border">Velocity</th>
+                      <th className="text-right px-4 py-3 font-medium border">Category</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {learningSpeed.employees.map((emp: any) => (
+                      <tr key={emp.employeeId} className="border-t">
+                        <td className="px-4 py-3 border font-medium">{emp.fullname}</td>
+                        <td className="px-4 py-3 border text-zinc-600">{emp.department}</td>
+                        <td className="px-4 py-3 border text-right">{emp.validSkillCount}</td>
+                        <td className={`px-4 py-3 border text-right font-mono ${CATEGORY_COLORS[emp.category as LearningCategory]?.text}`}>
+                          {emp.score.toFixed(4)}
+                        </td>
+                        <td className="px-4 py-3 border text-right">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${CATEGORY_COLORS[emp.category as LearningCategory]?.badge}`}>
+                            {CATEGORY_LABELS[emp.category as LearningCategory]}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="bg-white border rounded-xl shadow-sm p-6 space-y-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -255,6 +413,80 @@ export default function HRAnalyticsPage() {
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function LearningSpeedChart({ rows }: { rows: Array<{ department: string; score: number; category: string; employeeCount: number }> }) {
+  const width = Math.max(560, rows.length * 120);
+  const height = 320;
+  const leftPadding = 56;
+  const rightPadding = 24;
+  const topPadding = 20;
+  const bottomPadding = 100;
+  const chartWidth = width - leftPadding - rightPadding;
+  const chartHeight = height - topPadding - bottomPadding;
+  const barGap = 16;
+  const barWidth = Math.max(20, (chartWidth - barGap * (rows.length - 1)) / rows.length);
+
+  const maxAbs = Math.max(0.001, ...rows.map((r) => Math.abs(r.score)));
+  const yScale = (v: number) => (v / maxAbs) * (chartHeight / 2);
+  const midY = topPadding + chartHeight / 2;
+
+  return (
+    <div className="w-full overflow-x-auto">
+      <div style={{ minWidth: width }}>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ height }}>
+          {/* Zero line */}
+          <line x1={leftPadding} y1={midY} x2={width - rightPadding} y2={midY} stroke="#d4d4d8" strokeWidth="1.5" />
+
+          {/* Y axis ticks */}
+          {[-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs].map((tick, i) => {
+            const y = midY - yScale(tick);
+            return (
+              <g key={i}>
+                <line x1={leftPadding - 4} y1={y} x2={leftPadding} y2={y} stroke="#a1a1aa" strokeWidth="1" />
+                <text x={leftPadding - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#71717a">
+                  {tick.toFixed(3)}
+                </text>
+              </g>
+            );
+          })}
+
+          {rows.map((row, index) => {
+            const x = leftPadding + index * (barWidth + barGap);
+            const barH = Math.abs(yScale(row.score));
+            const positive = row.score >= 0;
+            const barY = positive ? midY - barH : midY;
+            const color = CATEGORY_COLORS[row.category as LearningCategory]?.bg ?? '#71717a';
+
+            return (
+              <g key={row.department}>
+                <rect x={x} y={barY} width={barWidth} height={Math.max(1, barH)} fill={color} rx={2} />
+                <text
+                  x={x + barWidth / 2}
+                  y={height - 14}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="#71717a"
+                  transform={`rotate(-30 ${x + barWidth / 2} ${height - 14})`}
+                >
+                  {row.department}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-600 mt-1 px-2">
+          {(Object.keys(CATEGORY_LABELS) as LearningCategory[]).map((cat) => (
+            <div key={cat} className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm inline-block" style={{ backgroundColor: CATEGORY_COLORS[cat].bg }} />
+              <span>{CATEGORY_LABELS[cat]}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

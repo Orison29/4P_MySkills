@@ -43,4 +43,11 @@ router.get(
 	analyticsController.getSkillSpectrumByDepartment
 );
 
+router.get(
+	"/learning-speed",
+	authMiddleware,
+	requireRole("HR", "ADMIN"),
+	analyticsController.getLearningSpeed
+);
+
 export default router;

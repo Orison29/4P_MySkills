@@ -19,5 +19,14 @@ export const analyticsApi = {
   getSkillSpectrumByDepartment: async (skillId: string): Promise<any> => {
     const response = await apiClient.get<any>(`/analytics/skill-spectrum?skillId=${skillId}`);
     return response.data;
+  },
+
+  getLearningSpeed: async (startDate?: string, endDate?: string): Promise<any> => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient.get<any>(`/analytics/learning-speed${query}`);
+    return response.data;
   }
 };
