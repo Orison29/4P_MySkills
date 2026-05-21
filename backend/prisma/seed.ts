@@ -177,11 +177,13 @@ async function main() {
             upsert: {
               create: {
                 fullname,
+                age: 25 + ((i + deptCode.length) % 10),
                 departmentId: manager.departmentId,
                 managerId: manager.profileId,
               },
               update: {
                 fullname,
+                age: 25 + ((i + deptCode.length) % 10),
                 departmentId: manager.departmentId,
                 managerId: manager.profileId,
               },
@@ -195,6 +197,7 @@ async function main() {
           profile: {
             create: {
               fullname,
+              age: 25 + ((i + deptCode.length) % 10),
               departmentId: manager.departmentId,
               managerId: manager.profileId,
             },
@@ -220,7 +223,7 @@ async function main() {
     }
   }
 
-  const skillNames = ['Communication', 'Problem Solving', 'Leadership', 'Technical Knowledge'];
+  const skillNames = ['React', 'Node.js', 'Python', 'PostgreSQL'];
   const skills = [];
 
   for (const name of skillNames) {
@@ -230,6 +233,61 @@ async function main() {
       create: { name, description: `${name} skill` },
     });
     skills.push(skill);
+  }
+
+  const projectNames = ['AI Onboarding', 'Data Foundations'];
+  const projects: { id: string; name: string }[] = [];
+
+  for (const name of projectNames) {
+    const existing = await prisma.project.findFirst({
+      where: { name },
+      select: { id: true, name: true },
+    });
+
+    if (existing) {
+      projects.push(existing);
+      continue;
+    }
+
+    const project = await prisma.project.create({
+      data: { name },
+      select: { id: true, name: true },
+    });
+    projects.push(project);
+  }
+
+  if (projects.length > 0) {
+    const [aiProject, dataProject] = projects;
+
+    await prisma.deliverable.upsert({
+      where: {
+        projectId_name: {
+          projectId: aiProject.id,
+          name: 'API Foundations',
+        },
+      },
+      update: { description: 'Baseline API deliverable' },
+      create: {
+        projectId: aiProject.id,
+        name: 'API Foundations',
+        description: 'Baseline API deliverable',
+      },
+    });
+
+    await prisma.deliverable.upsert({
+      where: {
+        projectId_name: {
+          projectId: dataProject.id,
+          name: 'Data Pipeline',
+        },
+      },
+      update: { description: 'Foundational data pipeline' },
+      create: {
+        projectId: dataProject.id,
+        name: 'Data Pipeline',
+        description: 'Foundational data pipeline',
+      },
+    });
   }
 
   // Mixed dataset pattern per employee (cycled):

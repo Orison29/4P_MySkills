@@ -116,6 +116,31 @@ export const getEmployeeAssignments = async (userId: string) => {
 	};
 };
 
+export const getMyProfile = async (userId: string) => {
+	const profile = await prisma.employeeProfile.findUnique({
+		where: { userId },
+		select: {
+			id: true,
+			fullname: true,
+			department: { select: { id: true, name: true } },
+			manager: {
+				select: {
+					id: true,
+					fullname: true,
+					department: { select: { id: true, name: true } },
+					user: { select: { email: true } },
+				},
+			},
+		},
+	});
+
+	if (!profile) {
+		throw new Error("Employee profile not found");
+	}
+
+	return profile;
+};
+
 export const getMyTeam = async (managerUserId: string) => {
 	const managerProfile = await prisma.employeeProfile.findUnique({
 		where: { userId: managerUserId }

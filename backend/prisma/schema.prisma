@@ -41,6 +41,12 @@ enum SkillChangeType {
   MANAGER_REJECTED
 }
 
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
   id           String           @id @default(uuid()) @db.Uuid
   email        String           @unique
@@ -66,6 +72,7 @@ model EmployeeProfile {
   id           String   @id @default(uuid()) @db.Uuid
   userId       String   @unique @db.Uuid
   fullname     String
+  age          Int?
   departmentId String   @db.Uuid
   managerId    String?  @db.Uuid
   createdAt    DateTime @default(now())
@@ -79,6 +86,7 @@ model EmployeeProfile {
   employeeSkills    EmployeeSkill[]
   skillProgressLogs SkillProgressLog[]
   campaignSkillSubmissions CampaignSkillSubmission[]
+  tasks             Task[]
 }
 
 model Project {
@@ -93,6 +101,7 @@ model Project {
   deliverables       Deliverable[]
   assignments        EmployeeProjectAssignment[]
   assignmentRequests AssignmentRequest[]
+  tasks              Task[]
 }
 
 model Deliverable {
@@ -106,8 +115,29 @@ model Deliverable {
   requiredSkills     DeliverableSkill[]
   assignments        EmployeeProjectAssignment[]
   assignmentRequests AssignmentRequest[]
+  tasks              Task[]
 
   @@unique([projectId, name])
+}
+
+model Task {
+  id            String     @id @default(uuid()) @db.Uuid
+  title         String
+  status        TaskStatus @default(PENDING)
+  employeeId    String     @db.Uuid
+  projectId     String     @db.Uuid
+  deliverableId String     @db.Uuid
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  employee    EmployeeProfile @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deliverable Deliverable     @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([projectId])
+  @@index([deliverableId])
+  @@index([status])
 }
 
 model EmployeeProjectAssignment {

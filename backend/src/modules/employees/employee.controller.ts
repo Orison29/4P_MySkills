@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { Role } from "@prisma/client";
-import { assignManager, createEmployeeProfile, deleteUserByEmployeeId, getEmployeeAssignments, getMyTeam } from "./employee.service";
+import { assignManager, createEmployeeProfile, deleteUserByEmployeeId, getEmployeeAssignments, getMyProfile, getMyTeam } from "./employee.service";
 
 export const createEmployeeHandler = async (req: Request, res: Response) => {
 	try {
@@ -62,6 +62,23 @@ export const getMyAssignmentsHandler = async (req: Request, res: Response) => {
 		const userId = req.user!.userId;
 		const assignments = await getEmployeeAssignments(userId);
 		res.status(200).json(assignments);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Internal server error";
+
+		if (message === "Employee profile not found") {
+			res.status(404).json({ error: message });
+			return;
+		}
+
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const getMyProfileHandler = async (req: Request, res: Response) => {
+	try {
+		const userId = req.user!.userId;
+		const profile = await getMyProfile(userId);
+		res.status(200).json(profile);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Internal server error";
 

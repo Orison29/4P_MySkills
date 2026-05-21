@@ -13,6 +13,8 @@ import analyticsRoutes from "../modules/analytics/analytics.routes";
 import assessmentCampaignRoutes from "../modules/assessment-campaigns/assessment-campaign.routes";
 import skillsIngestRoutes from "../modules/skills-ingest/skills-ingest.routes";
 import managerIngestRoutes from "../modules/manager-ingest/manager-ingest.routes";
+import employeeIngestRoutes from "../modules/employee-ingest/employee-ingest.routes";
+import taskRoutes from "../modules/tasks/tasks.routes";
 
 export const registerRoutes = (app: Express) => {
   app.use("/api/auth", authRoutes);
@@ -23,6 +25,8 @@ export const registerRoutes = (app: Express) => {
   app.use("/api/employee-skills", employeeSkillRoutes);
   app.use("/api/skills/ingest", skillsIngestRoutes);
   app.use("/api/managers/ingest", managerIngestRoutes);
+  app.use("/api/employees/ingest", employeeIngestRoutes);
+  app.use("/api/tasks", taskRoutes);
   app.use("/api", deliverableRoutes);
   app.use("/api", deliverableSkillRoutes);
   app.use("/api", recommendationRoutes);
