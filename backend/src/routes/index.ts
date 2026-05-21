@@ -11,6 +11,7 @@ import deliverableSkillRoutes from "../modules/deliverable-skills/deliverable-sk
 import recommendationRoutes from "../modules/recommendations/recommendation.routes";
 import analyticsRoutes from "../modules/analytics/analytics.routes";
 import assessmentCampaignRoutes from "../modules/assessment-campaigns/assessment-campaign.routes";
+import skillsIngestRoutes from "../modules/skills-ingest/skills-ingest.routes";
 
 export const registerRoutes = (app: Express) => {
   app.use("/api/auth", authRoutes);
@@ -19,6 +20,7 @@ export const registerRoutes = (app: Express) => {
   app.use("/api/projects", projectRoutes);
   app.use("/api/skills", skillRoutes);
   app.use("/api/employee-skills", employeeSkillRoutes);
+  app.use("/api/skills/ingest", skillsIngestRoutes);
   app.use("/api", deliverableRoutes);
   app.use("/api", deliverableSkillRoutes);
   app.use("/api", recommendationRoutes);
