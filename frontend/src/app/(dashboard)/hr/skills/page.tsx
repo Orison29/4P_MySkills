@@ -5,15 +5,75 @@ import { skillsApi } from '@/api/skills.api';
 import { Plus, Star } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 export default function HRSkillsPage() {
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadSummary, setUploadSummary] = useState<{
+    processed: number;
+    created: number;
+    ignored: number;
+    failed: number;
+    errors: { row: number; field: string; error: string }[];
+  } | null>(null);
 
   const { data: skills, isLoading } = useQuery({
     queryKey: ['skills'],
     queryFn: skillsApi.getSkills,
   });
+
+  const ingestMutation = useMutation({
+    mutationFn: (file: File) => skillsApi.ingestSkills(file, 'ignore'),
+    onSuccess: (summary) => {
+      setUploadSummary(summary);
+      queryClient.invalidateQueries({ queryKey: ['skills'] });
+      toast.success('Skills uploaded successfully');
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.error || 'Failed to upload skills';
+      toast.error(msg);
+    },
+  });
+
+  const handleFileChange = async (file: File | null) => {
+    setUploadSummary(null);
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Only .csv files are allowed');
+      setSelectedFile(null);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const firstLine = text.split(/\r?\n/)[0] || '';
+      if (firstLine.trim().toLowerCase() !== 'skills') {
+        toast.error('Invalid CSV header. First column must be Skills');
+        setSelectedFile(null);
+        return;
+      }
+    } catch {
+      toast.error('Could not read the file. Please try again.');
+      setSelectedFile(null);
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleUpload = () => {
+    if (!selectedFile) {
+      toast.error('Please choose a CSV file first');
+      return;
+    }
+    ingestMutation.mutate(selectedFile);
+  };
 
   return (
     <div className="space-y-6">
@@ -29,6 +89,82 @@ export default function HRSkillsPage() {
           <Plus className="w-4 h-4" />
           Create Skill
         </button>
+      </div>
+
+      <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Upload Skills CSV</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Upload a CSV with a single column named Skills. Duplicate skills are skipped automatically.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">CSV File</label>
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-zinc-500">Required header: Skills</p>
+          </div>
+          <button
+            onClick={handleUpload}
+            disabled={!selectedFile || ingestMutation.isPending}
+            className="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50"
+          >
+            {ingestMutation.isPending ? 'Uploading...' : 'Upload CSV'}
+          </button>
+        </div>
+
+        {uploadSummary && (
+          <div className="rounded-lg border bg-zinc-50 p-4">
+            <div className="grid gap-3 sm:grid-cols-4 text-sm">
+              <div>
+                <p className="text-zinc-500">Processed</p>
+                <p className="font-semibold text-zinc-900">{uploadSummary.processed}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Created</p>
+                <p className="font-semibold text-emerald-700">{uploadSummary.created}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Ignored</p>
+                <p className="font-semibold text-zinc-700">{uploadSummary.ignored}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Failed</p>
+                <p className="font-semibold text-red-600">{uploadSummary.failed}</p>
+              </div>
+            </div>
+
+            {uploadSummary.errors.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-medium text-zinc-700 mb-2">Errors</p>
+                <div className="max-h-40 overflow-auto rounded-md border bg-white">
+                  <table className="w-full text-xs">
+                    <thead className="bg-zinc-50 text-zinc-500">
+                      <tr>
+                        <th className="text-left px-3 py-2">Row</th>
+                        <th className="text-left px-3 py-2">Field</th>
+                        <th className="text-left px-3 py-2">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {uploadSummary.errors.map((error, index) => (
+                        <tr key={`${error.row}-${index}`} className="border-t">
+                          <td className="px-3 py-2">{error.row}</td>
+                          <td className="px-3 py-2">{error.field}</td>
+                          <td className="px-3 py-2 text-red-600">{error.error}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {isLoading ? (

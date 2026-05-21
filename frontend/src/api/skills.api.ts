@@ -1,6 +1,14 @@
 import { apiClient } from '../lib/api-client';
 import { Skill, EmployeeSkill } from '../types';
 
+type SkillsIngestSummary = {
+  processed: number;
+  created: number;
+  ignored: number;
+  failed: number;
+  errors: { row: number; field: string; error: string }[];
+};
+
 export const skillsApi = {
   getSkills: async (): Promise<Skill[]> => {
     const response = await apiClient.get<Skill[]>('/skills');
@@ -9,6 +17,23 @@ export const skillsApi = {
 
   createSkill: async (data: { name: string; description: string }): Promise<Skill> => {
     const response = await apiClient.post<Skill>('/skills', data);
+    return response.data;
+  },
+
+  ingestSkills: async (file: File, dupStrategy: 'ignore' | 'reject' = 'ignore'): Promise<SkillsIngestSummary> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post<SkillsIngestSummary>(
+      `/skills/ingest?dupStrategy=${dupStrategy}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
     return response.data;
   },
 };
