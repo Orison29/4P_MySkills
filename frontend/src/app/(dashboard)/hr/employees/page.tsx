@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { analyticsApi } from '@/api/analytics.api';
+import { employeeApi, EmployeeIngestSummary } from '@/api/employee.api';
 import { managersApi, ManagerIngestSummary } from '@/api/managers.api';
 import { Users, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
@@ -15,6 +16,8 @@ export default function HREmployeesPage() {
   const [category, setCategory] = useState<'ALL' | 'MANAGERS' | 'EMPLOYEES' | 'DEPARTMENTS'>('ALL');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadSummary, setUploadSummary] = useState<ManagerIngestSummary | null>(null);
+  const [employeeFile, setEmployeeFile] = useState<File | null>(null);
+  const [employeeSummary, setEmployeeSummary] = useState<EmployeeIngestSummary | null>(null);
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ['analytics', 'employees', 'overview'],
@@ -30,6 +33,28 @@ export default function HREmployeesPage() {
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.error || 'Failed to upload managers';
+      toast.error(msg);
+    },
+  });
+
+  const employeeIngestMutation = useMutation({
+    mutationFn: (file: File) => employeeApi.ingestEmployees(file),
+    onSuccess: (summary) => {
+      setEmployeeSummary(summary);
+      queryClient.invalidateQueries({ queryKey: ['analytics', 'employees', 'overview'] });
+      toast.success('Employees uploaded successfully');
+    },
+    onError: (error: any) => {
+      const data = error?.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        setEmployeeSummary(data);
+      }
+      const msg =
+        data?.error ||
+        data?.message ||
+        (Array.isArray(data?.errors) && data.errors[0]?.error) ||
+        error?.message ||
+        'Failed to upload employees';
       toast.error(msg);
     },
   });
@@ -77,6 +102,59 @@ export default function HREmployeesPage() {
     ingestMutation.mutate(selectedFile);
   };
 
+  const handleEmployeeFileChange = async (file: File | null) => {
+    setEmployeeSummary(null);
+    if (!file) {
+      setEmployeeFile(null);
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Only .csv files are allowed');
+      setEmployeeFile(null);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const firstLine = text.split(/\r?\n/)[0] || '';
+      const rawHeaders = firstLine.split(',');
+      if (rawHeaders.length > 0) {
+        rawHeaders[0] = rawHeaders[0].replace(/^\uFEFF/, '');
+      }
+      const headers = rawHeaders.map((cell) => cell.trim().toLowerCase());
+
+      if (headers.length < 8) {
+        toast.error('Invalid header. Expected: name, age, department, skill(s), reportsTo, project, deliverable, tasks');
+        setEmployeeFile(null);
+        return;
+      }
+
+      const firstThree = headers.slice(0, 3).join(',');
+      const lastFour = headers.slice(-4).join(',');
+
+      if (firstThree !== 'name,age,department' || lastFour !== 'reportsto,project,deliverable,tasks') {
+        toast.error('Invalid header order. Expected: name, age, department, skill(s), reportsTo, project, deliverable, tasks');
+        setEmployeeFile(null);
+        return;
+      }
+    } catch {
+      toast.error('Could not read the file. Please try again.');
+      setEmployeeFile(null);
+      return;
+    }
+
+    setEmployeeFile(file);
+  };
+
+  const handleEmployeeUpload = () => {
+    if (!employeeFile) {
+      toast.error('Please choose a CSV file first');
+      return;
+    }
+    employeeIngestMutation.mutate(employeeFile);
+  };
+
   const handleDownload = () => {
     if (!uploadSummary || uploadSummary.managers.length === 0) {
       toast.error('No managers to download yet');
@@ -101,6 +179,44 @@ export default function HREmployeesPage() {
     const link = document.createElement('a');
     link.href = url;
     link.download = 'managers-created.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleEmployeeDownload = () => {
+    if (!employeeSummary || employeeSummary.employees.length === 0) {
+      toast.error('No employees to download yet');
+      return;
+    }
+
+    const rows = [
+      ['name', 'email', 'department', 'managerEmail', 'project', 'deliverable', 'tasks'],
+      ...employeeSummary.employees.map((employee) => [
+        employee.name,
+        employee.email,
+        employee.department,
+        employee.managerEmail,
+        employee.project,
+        employee.deliverable,
+        employee.tasks.join('; '),
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) =>
+        row
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(',')
+      )
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'employees-created.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -249,6 +365,128 @@ export default function HREmployeesPage() {
                     </thead>
                     <tbody>
                       {uploadSummary.errors.map((error, index) => (
+                        <tr key={`${error.row}-${index}`} className="border-t">
+                          <td className="px-3 py-2">{error.row}</td>
+                          <td className="px-3 py-2">{error.field}</td>
+                          <td className="px-3 py-2 text-red-600">{error.error}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white border rounded-xl shadow-sm p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Upload Employees CSV</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Header must be: name, age, department, skill(s), reportsTo, project, deliverable, tasks. Skill columns are skill names; each cell holds a 1-5 rating. Use ';' to separate tasks.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium">CSV File</label>
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={(event) => handleEmployeeFileChange(event.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-zinc-500">
+              Required: name, age, department, skill(s), reportsTo, project, deliverable, tasks
+            </p>
+          </div>
+          <button
+            onClick={handleEmployeeUpload}
+            disabled={!employeeFile || employeeIngestMutation.isPending}
+            className="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition disabled:opacity-50"
+          >
+            {employeeIngestMutation.isPending ? 'Uploading...' : 'Upload CSV'}
+          </button>
+        </div>
+
+        {employeeSummary && (
+          <div className="rounded-lg border bg-zinc-50 p-4 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-5 text-sm">
+              <div>
+                <p className="text-zinc-500">Processed</p>
+                <p className="font-semibold text-zinc-900">{employeeSummary.processed}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Projects Created</p>
+                <p className="font-semibold text-emerald-700">{employeeSummary.projectsCreated}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Deliverables Created</p>
+                <p className="font-semibold text-emerald-700">{employeeSummary.deliverablesCreated}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Employees Created</p>
+                <p className="font-semibold text-emerald-700">{employeeSummary.employeesCreated}</p>
+              </div>
+              <div>
+                <p className="text-zinc-500">Tasks Created</p>
+                <p className="font-semibold text-emerald-700">{employeeSummary.tasksCreated}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <p className="text-zinc-500">Download created employee emails and tasks</p>
+              <button
+                onClick={handleEmployeeDownload}
+                className="h-8 px-3 rounded-md border bg-white hover:bg-zinc-50 transition"
+              >
+                Download CSV
+              </button>
+            </div>
+
+            {employeeSummary.employees.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-zinc-700 mb-2">Created Employees</p>
+                <div className="max-h-56 overflow-auto rounded-md border bg-white">
+                  <table className="w-full text-xs">
+                    <thead className="bg-zinc-50 text-zinc-500">
+                      <tr>
+                        <th className="text-left px-3 py-2">Name</th>
+                        <th className="text-left px-3 py-2">Email</th>
+                        <th className="text-left px-3 py-2">Manager</th>
+                        <th className="text-left px-3 py-2">Project</th>
+                        <th className="text-left px-3 py-2">Deliverable</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employeeSummary.employees.map((employee, index) => (
+                        <tr key={`${employee.email}-${index}`} className="border-t">
+                          <td className="px-3 py-2">{employee.name}</td>
+                          <td className="px-3 py-2">{employee.email}</td>
+                          <td className="px-3 py-2">{employee.managerEmail}</td>
+                          <td className="px-3 py-2">{employee.project}</td>
+                          <td className="px-3 py-2">{employee.deliverable}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {employeeSummary.errors.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-zinc-700 mb-2">Errors</p>
+                <div className="max-h-40 overflow-auto rounded-md border bg-white">
+                  <table className="w-full text-xs">
+                    <thead className="bg-zinc-50 text-zinc-500">
+                      <tr>
+                        <th className="text-left px-3 py-2">Row</th>
+                        <th className="text-left px-3 py-2">Field</th>
+                        <th className="text-left px-3 py-2">Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {employeeSummary.errors.map((error, index) => (
                         <tr key={`${error.row}-${index}`} className="border-t">
                           <td className="px-3 py-2">{error.row}</td>
                           <td className="px-3 py-2">{error.field}</td>

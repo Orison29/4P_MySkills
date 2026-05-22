@@ -10,6 +10,10 @@ export default function ManagerTeamPage() {
     queryKey: ['manager', 'team'],
     queryFn: managerApi.getMyTeam,
   });
+  const { data: teamTasks, isLoading: tasksLoading } = useQuery({
+    queryKey: ['manager', 'team', 'tasks'],
+    queryFn: managerApi.getTeamTasks,
+  });
 
   return (
     <RoleGuard allowedRoles={['MANAGER']}>
@@ -65,6 +69,59 @@ export default function ManagerTeamPage() {
             ))}
           </div>
         )}
+
+        <div className="bg-white border rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Team Tasks</h2>
+              <p className="text-sm text-zinc-500 mt-1">All tasks assigned to your direct reports.</p>
+            </div>
+          </div>
+
+          {tasksLoading ? (
+            <div className="text-zinc-500">Loading tasks...</div>
+          ) : teamTasks?.length === 0 ? (
+            <div className="text-zinc-500">No tasks assigned yet.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50 text-zinc-500">
+                  <tr>
+                    <th className="text-left px-4 py-2">Employee</th>
+                    <th className="text-left px-4 py-2">Project</th>
+                    <th className="text-left px-4 py-2">Deliverable</th>
+                    <th className="text-left px-4 py-2">Task</th>
+                    <th className="text-left px-4 py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {teamTasks?.map((task: any) => (
+                    <tr key={task.id}>
+                      <td className="px-4 py-2 font-medium text-zinc-700">
+                        {task.employee?.fullname}
+                        <div className="text-xs text-zinc-400">{task.employee?.user?.email}</div>
+                      </td>
+                      <td className="px-4 py-2 text-zinc-600">{task.project?.name}</td>
+                      <td className="px-4 py-2 text-zinc-600">{task.deliverable?.name}</td>
+                      <td className="px-4 py-2 text-zinc-700">{task.title}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          task.status === 'COMPLETED'
+                            ? 'bg-green-100 text-green-700'
+                            : task.status === 'IN_PROGRESS'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {task.status === 'IN_PROGRESS' ? 'In Progress' : task.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </RoleGuard>
   );

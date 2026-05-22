@@ -10,7 +10,7 @@ export function AddEmployeeModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     email: '',
-    password: '',
+    password: 'password@123',
     role: 'EMPLOYEE',
     fullname: '',
     departmentId: '',
@@ -101,7 +101,7 @@ export function AddEmployeeModal({ onClose }: { onClose: () => void }) {
                 required
                 type="password" 
                 className="w-full rounded-md border p-2 text-sm focus:ring-2 focus:ring-primary outline-none"
-                placeholder="••••••••"
+                placeholder="password@123"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
               />

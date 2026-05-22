@@ -6,6 +6,10 @@ export const managerApi = {
     const response = await apiClient.get<any[]>('/employees/my-team');
     return response.data;
   },
+  getTeamTasks: async (): Promise<any[]> => {
+    const response = await apiClient.get<any[]>('/tasks/manager-team');
+    return response.data;
+  },
 
   getPendingSkillReviews: async (): Promise<EmployeeSkill[]> => {
     const response = await apiClient.get<EmployeeSkill[]>('/employee-skills/pending');

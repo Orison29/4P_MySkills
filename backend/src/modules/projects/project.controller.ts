@@ -99,10 +99,13 @@ export const analyzeProjectHandler = async (req: Request, res: Response) => {
 			return;
 		}
 
+		const userPrompt = typeof req.body?.userPrompt === "string" ? req.body.userPrompt : undefined;
+
 		const result = await analyzeProjectWithLLM(
 			projectId,
 			project.name,
-			project.description
+			project.description,
+			userPrompt
 		);
 
 		res.status(200).json(result);

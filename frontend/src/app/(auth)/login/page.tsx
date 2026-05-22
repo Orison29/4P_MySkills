@@ -66,10 +66,10 @@ export default function LoginPage() {
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <button type="button" onClick={() => { setValue('email', 'hr@example.com'); setValue('password', 'password123'); }} className="text-xs py-1 px-2 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 hover:bg-indigo-100 transition">HR User</button>
-          <button type="button" onClick={() => { setValue('email', 'manager@example.com'); setValue('password', 'password123'); }} className="text-xs py-1 px-2 bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100 transition">Manager</button>
-          <button type="button" onClick={() => { setValue('email', 'employee@example.com'); setValue('password', 'password123'); }} className="text-xs py-1 px-2 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 hover:bg-emerald-100 transition">Employee</button>
-          <button type="button" onClick={() => { setValue('email', 'admin@example.com'); setValue('password', 'password123'); }} className="text-xs py-1 px-2 bg-zinc-50 text-zinc-700 rounded border border-zinc-200 hover:bg-zinc-100 transition">Admin</button>
+          <button type="button" onClick={() => { setValue('email', 'hr@example.com'); setValue('password', 'password@123'); }} className="text-xs py-1 px-2 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 hover:bg-indigo-100 transition">HR User</button>
+          <button type="button" onClick={() => { setValue('email', 'manager@example.com'); setValue('password', 'password@123'); }} className="text-xs py-1 px-2 bg-blue-50 text-blue-700 rounded border border-blue-200 hover:bg-blue-100 transition">Manager</button>
+          <button type="button" onClick={() => { setValue('email', 'employee@example.com'); setValue('password', 'password@123'); }} className="text-xs py-1 px-2 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 hover:bg-emerald-100 transition">Employee</button>
+          <button type="button" onClick={() => { setValue('email', 'admin@example.com'); setValue('password', 'password@123'); }} className="text-xs py-1 px-2 bg-zinc-50 text-zinc-700 rounded border border-zinc-200 hover:bg-zinc-100 transition">Admin</button>
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>

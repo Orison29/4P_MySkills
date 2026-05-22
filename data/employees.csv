@@ -1,0 +1,16 @@
+name,age,department,Docker,Kubernetes,AWS,Node.js,PostgreSQL,reportsTo,project,deliverable,tasks
+Rohan Das,27,DevOps,5,5,4,2,2,priyanairmanager1@gmail.com,DevOps Acceleration,CI Automation,Set up CI runners;Create deployment checklist
+Kavya Menon,30,DevOps,4,5,5,2,2,priyanairmanager1@gmail.com,DevOps Acceleration,Observability Pack,Configure metrics dashboards;Add alert rules
+Imran Shaikh,26,DevOps,5,4,4,3,2,priyanairmanager1@gmail.com,Cloud Reliability,Infra Hardening,Rotate secrets;Harden base images
+Neelam Joshi,29,DevOps,4,4,3,2,2,priyanairmanager1@gmail.com,Cloud Reliability,Cost Guardrails,Tag cloud resources;Optimize storage tiers
+Varun Bhat,31,DevOps,5,5,5,3,3,priyanairmanager1@gmail.com,Platform Fusion,Release Pipeline,Build release pipeline;Document runbooks
+Ananya Gupta,25,Backend,2,1,3,5,5,sandeepraomanager1@gmail.com,Backend Reliability,Auth Service,Implement token refresh;Write unit tests
+Sahil Verma,28,Backend,3,2,3,4,5,sandeepraomanager1@gmail.com,Backend Reliability,Database Tuning,Add indexes;Measure query latency
+Pooja Reddy,27,Backend,2,1,2,5,4,sandeepraomanager1@gmail.com,API Evolution,Orders API,Design endpoints;Add validation rules
+Vivek Singh,32,Backend,3,2,4,4,5,sandeepraomanager1@gmail.com,API Evolution,Queue Integration,Add job worker;Retry failed jobs
+Isha Patel,26,Backend,2,1,2,5,5,sandeepraomanager1@gmail.com,Platform Fusion,Shared Services,Refactor service layer;Update API docs
+Rahul Nair,29,Platform,4,4,4,4,4,meeraiqbalmanager1@gmail.com,Platform Fusion,Unified Gateway,Create gateway config;Load test gateway
+Sneha Kapoor,27,Platform,3,3,4,4,3,meeraiqbalmanager1@gmail.com,Platform Fusion,Access Control,Define RBAC roles;Sync permissions
+Arjun Mehta,30,Platform,4,3,3,4,4,meeraiqbalmanager1@gmail.com,Cloud Reliability,Hybrid Deploy,Build deployment matrix;Test rollback flow
+Divya Rao,28,Platform,3,4,5,3,3,meeraiqbalmanager1@gmail.com,DevOps Acceleration,Security Baseline,Scan containers;Fix critical CVEs
+Kiran Shah,31,Platform,4,4,5,4,4,meeraiqbalmanager1@gmail.com,API Evolution,Integration Hub,Map service contracts;Set up staging env

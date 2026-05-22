@@ -143,6 +143,16 @@ export const reviewAssignmentRequest = async (
 			}
 		});
 
+		await prisma.task.updateMany({
+			where: {
+				deliverableId: request.deliverableId,
+				employeeId: null
+			},
+			data: {
+				employeeId: request.employeeId
+			}
+		});
+
 		return prisma.assignmentRequest.update({
 			where: { id: requestId },
 			data: {

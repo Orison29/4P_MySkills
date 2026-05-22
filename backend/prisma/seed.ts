@@ -1,71 +1,23 @@
 import 'dotenv/config';
-import { Role, SkillChangeType, SkillRatingStatus } from '@prisma/client';
+import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { prisma } from '../src/utils/db';
 
-const daysAgo = (n: number): Date => {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d;
-};
-
 async function main() {
-  console.log('Seeding structured demo data...');
+  console.log('Seeding minimal admin/hr data...');
 
-  const passwordHash = await bcrypt.hash('password123', 10);
-
-  const deptA = await prisma.department.upsert({
-    where: { name: 'A' },
-    update: {},
-    create: { name: 'A' },
-  });
-  const deptB = await prisma.department.upsert({
-    where: { name: 'B' },
-    update: {},
-    create: { name: 'B' },
-  });
-  const deptC = await prisma.department.upsert({
-    where: { name: 'C' },
-    update: {},
-    create: { name: 'C' },
-  });
-  const deptD = await prisma.department.upsert({
-    where: { name: 'D' },
-    update: {},
-    create: { name: 'D' },
-  });
-
-  const departments = [deptA, deptB, deptC, deptD];
+  const passwordHash = await bcrypt.hash('password@123', 10);
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {
       role: Role.ADMIN,
       passwordHash,
-      profile: {
-        upsert: {
-          create: {
-            fullname: 'System Admin',
-            departmentId: deptA.id,
-          },
-          update: {
-            fullname: 'System Admin',
-            departmentId: deptA.id,
-            managerId: null,
-          }
-        }
-      }
     },
     create: {
       email: 'admin@example.com',
       passwordHash,
       role: Role.ADMIN,
-      profile: {
-        create: {
-          fullname: 'System Admin',
-          departmentId: deptA.id,
-        }
-      }
     },
   });
 
@@ -74,333 +26,19 @@ async function main() {
     update: {
       role: Role.HR,
       passwordHash,
-      profile: {
-        upsert: {
-          create: {
-            fullname: 'HR Manager',
-            departmentId: deptB.id,
-          },
-          update: {
-            fullname: 'HR Manager',
-            departmentId: deptB.id,
-            managerId: null,
-          }
-        }
-      }
     },
     create: {
       email: 'hr@example.com',
       passwordHash,
       role: Role.HR,
-      profile: {
-        create: {
-          fullname: 'HR Manager',
-          departmentId: deptB.id,
-        }
-      }
     },
   });
-
-  const managers: { email: string; userId: string; profileId: string; departmentId: string }[] = [];
-
-  for (let i = 0; i < departments.length; i++) {
-    const department = departments[i];
-    const managerEmail = `manager${department.name.toLowerCase()}@example.com`;
-    const managerFullname = `Manager ${department.name}`;
-
-    const managerUser = await prisma.user.upsert({
-      where: { email: managerEmail },
-      update: {
-        role: Role.MANAGER,
-        passwordHash,
-        profile: {
-          upsert: {
-            create: {
-              fullname: managerFullname,
-              departmentId: department.id,
-              managerId: null,
-            },
-            update: {
-              fullname: managerFullname,
-              departmentId: department.id,
-              managerId: null,
-            },
-          },
-        },
-      },
-      create: {
-        email: managerEmail,
-        passwordHash,
-        role: Role.MANAGER,
-        profile: {
-          create: {
-            fullname: managerFullname,
-            departmentId: department.id,
-            managerId: null,
-          },
-        },
-      },
-    });
-
-    const managerProfile = await prisma.employeeProfile.findUnique({
-      where: { userId: managerUser.id },
-      select: { id: true },
-    });
-
-    if (!managerProfile) {
-      throw new Error(`Manager profile missing for ${managerEmail}`);
-    }
-
-    managers.push({
-      email: managerEmail,
-      userId: managerUser.id,
-      profileId: managerProfile.id,
-      departmentId: department.id,
-    });
-  }
-
-  const employees: { email: string; userId: string; profileId: string; managerUserId: string }[] = [];
-
-  for (const manager of managers) {
-    const deptCode = manager.email.replace('manager', '').replace('@example.com', '').toUpperCase();
-
-    for (let i = 1; i <= 5; i++) {
-      const email = `employee${deptCode}${i}@example.com`;
-      const fullname = `Employee ${deptCode}${i}`;
-
-      const user = await prisma.user.upsert({
-        where: { email },
-        update: {
-          role: Role.EMPLOYEE,
-          passwordHash,
-          profile: {
-            upsert: {
-              create: {
-                fullname,
-                age: 25 + ((i + deptCode.length) % 10),
-                departmentId: manager.departmentId,
-                managerId: manager.profileId,
-              },
-              update: {
-                fullname,
-                age: 25 + ((i + deptCode.length) % 10),
-                departmentId: manager.departmentId,
-                managerId: manager.profileId,
-              },
-            },
-          },
-        },
-        create: {
-          email,
-          passwordHash,
-          role: Role.EMPLOYEE,
-          profile: {
-            create: {
-              fullname,
-              age: 25 + ((i + deptCode.length) % 10),
-              departmentId: manager.departmentId,
-              managerId: manager.profileId,
-            },
-          },
-        },
-      });
-
-      const profile = await prisma.employeeProfile.findUnique({
-        where: { userId: user.id },
-        select: { id: true },
-      });
-
-      if (!profile) {
-        throw new Error(`Employee profile missing for ${email}`);
-      }
-
-      employees.push({
-        email,
-        userId: user.id,
-        profileId: profile.id,
-        managerUserId: manager.userId,
-      });
-    }
-  }
-
-  const skillNames = ['React', 'Node.js', 'Python', 'PostgreSQL'];
-  const skills = [];
-
-  for (const name of skillNames) {
-    const skill = await prisma.skill.upsert({
-      where: { name },
-      update: { description: `${name} skill` },
-      create: { name, description: `${name} skill` },
-    });
-    skills.push(skill);
-  }
-
-  const projectNames = ['AI Onboarding', 'Data Foundations'];
-  const projects: { id: string; name: string }[] = [];
-
-  for (const name of projectNames) {
-    const existing = await prisma.project.findFirst({
-      where: { name },
-      select: { id: true, name: true },
-    });
-
-    if (existing) {
-      projects.push(existing);
-      continue;
-    }
-
-    const project = await prisma.project.create({
-      data: { name },
-      select: { id: true, name: true },
-    });
-    projects.push(project);
-  }
-
-  if (projects.length > 0) {
-    const [aiProject, dataProject] = projects;
-
-    await prisma.deliverable.upsert({
-      where: {
-        projectId_name: {
-          projectId: aiProject.id,
-          name: 'API Foundations',
-        },
-      },
-      update: { description: 'Baseline API deliverable' },
-      create: {
-        projectId: aiProject.id,
-        name: 'API Foundations',
-        description: 'Baseline API deliverable',
-      },
-    });
-
-    await prisma.deliverable.upsert({
-      where: {
-        projectId_name: {
-          projectId: dataProject.id,
-          name: 'Data Pipeline',
-        },
-      },
-      update: { description: 'Foundational data pipeline' },
-      create: {
-        projectId: dataProject.id,
-        name: 'Data Pipeline',
-        description: 'Foundational data pipeline',
-      },
-    });
-  }
-
-  // Mixed dataset pattern per employee (cycled):
-  // 0 rated, 1 rated (pending), 2 rated (approved), 3 rated (mixed), 4 rated (mixed)
-  for (let i = 0; i < employees.length; i++) {
-    const employee = employees[i];
-    const pattern = i % 5;
-
-    let ratedCount = 0;
-    if (pattern === 0) ratedCount = 0;
-    if (pattern === 1) ratedCount = 1;
-    if (pattern === 2) ratedCount = 2;
-    if (pattern === 3) ratedCount = 3;
-    if (pattern === 4) ratedCount = 4;
-
-    for (let s = 0; s < ratedCount; s++) {
-      const skill = skills[s];
-      const selfRating = ((i + s) % 5) + 1;
-      const shouldBePending = (i + s) % 2 === 0;
-      const status = shouldBePending ? SkillRatingStatus.PENDING : SkillRatingStatus.APPROVED;
-      const approvedRating = shouldBePending ? null : selfRating;
-      const reviewedBy = shouldBePending ? null : employee.managerUserId;
-      const reviewedAt = shouldBePending ? null : new Date();
-
-      await prisma.employeeSkill.upsert({
-        where: {
-          employeeId_skillId: {
-            employeeId: employee.profileId,
-            skillId: skill.id,
-          },
-        },
-        update: {
-          selfRating,
-          status,
-          approvedRating,
-          reviewedBy,
-          reviewedAt,
-          reviewComment: shouldBePending ? null : 'Reviewed in seed data',
-        },
-        create: {
-          employeeId: employee.profileId,
-          skillId: skill.id,
-          selfRating,
-          status,
-          approvedRating,
-          reviewedBy,
-          reviewedAt,
-          reviewComment: shouldBePending ? null : 'Reviewed in seed data',
-        },
-      });
-
-      // Seed SkillProgressLog history so learning-speed has >=2 points per series.
-      // Only create logs if none already exist for this employee+skill pair.
-      const existingLogs = await prisma.skillProgressLog.count({
-        where: { employeeId: employee.profileId, skillId: skill.id },
-      });
-
-      if (existingLogs === 0) {
-        // Spread initial timestamps so employees don't all start on the same day.
-        const spread = (i * 7 + s * 3) % 30;
-
-        // Point 1 – initial self-rating 90–120 days ago (lower than current).
-        const initialRating = Math.max(1, selfRating - 2);
-        await prisma.skillProgressLog.create({
-          data: {
-            employeeId: employee.profileId,
-            skillId: skill.id,
-            previousRating: null,
-            newRating: initialRating,
-            changeType: SkillChangeType.INITIAL_RATING,
-            changedAt: daysAgo(90 + spread),
-          },
-        });
-
-        // Point 2 – self-update 45–60 days ago (one step up).
-        const midRating = Math.min(5, initialRating + 1);
-        await prisma.skillProgressLog.create({
-          data: {
-            employeeId: employee.profileId,
-            skillId: skill.id,
-            previousRating: initialRating,
-            newRating: midRating,
-            changeType: SkillChangeType.SELF_UPDATED,
-            changedAt: daysAgo(45 + spread),
-          },
-        });
-
-        // Point 3 – manager review 7–21 days ago (approved or edited to current).
-        if (!shouldBePending) {
-          await prisma.skillProgressLog.create({
-            data: {
-              employeeId: employee.profileId,
-              skillId: skill.id,
-              previousRating: midRating,
-              newRating: selfRating,
-              changeType: SkillChangeType.MANAGER_APPROVED,
-              changedBy: employee.managerUserId,
-              changedAt: daysAgo(7 + (i + s) % 14),
-            },
-          });
-        }
-      }
-    }
-  }
 
   console.log('Seed completed successfully!');
   console.log({
     admin: adminUser.email,
     hr: hrUser.email,
-    managers: managers.map((m) => m.email),
-    employeeCount: employees.length,
-    departments: departments.map((d) => d.name),
-    skills: skillNames,
+    departments: [],
   });
 }
 
