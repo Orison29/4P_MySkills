@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { ProjectStatus } from "@prisma/client";
-import { createProject, getAllProjects, getProjectById, updateProjectStatus, deleteProject } from "./project.service";
+import { createProject, getAllProjects, getProjectById, updateProjectStatus, deleteProject, forceDeleteProject } from "./project.service";
 import { analyzeProjectWithLLM } from "../llm/llm.service";
 
 export const createProjectHandler = async (req: Request, res: Response) => {
@@ -146,6 +146,28 @@ export const deleteProjectHandler = async (req: Request, res: Response) => {
 			message === "Can only delete projects in PLANNED status"
 		) {
 			res.status(400).json({ error: message });
+			return;
+		}
+
+		res.status(500).json({ error: "Internal server error" });
+	}
+};
+
+export const forceDeleteProjectHandler = async (req: Request, res: Response) => {
+	try {
+		const rawId = req.params.id;
+		const projectId = Array.isArray(rawId) ? rawId[0] : rawId;
+
+		const deletedProject = await forceDeleteProject(projectId);
+		res.status(200).json({
+			message: "Project force deleted successfully",
+			project: deletedProject
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : "Internal server error";
+
+		if (message === "Project not found") {
+			res.status(404).json({ error: message });
 			return;
 		}
 

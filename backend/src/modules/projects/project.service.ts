@@ -125,3 +125,33 @@ export const deleteProject = async (projectId: string) => {
 		where: { id: projectId }
 	});
 };
+
+export const forceDeleteProject = async (projectId: string) => {
+	const project = await prisma.project.findUnique({
+		where: { id: projectId }
+	});
+
+	if (!project) {
+		throw new Error("Project not found");
+	}
+
+	await prisma.$transaction([
+		prisma.assignmentRequest.deleteMany({
+			where: { projectId }
+		}),
+		prisma.employeeProjectAssignment.deleteMany({
+			where: { projectId }
+		}),
+		prisma.task.deleteMany({
+			where: { projectId }
+		}),
+		prisma.deliverable.deleteMany({
+			where: { projectId }
+		}),
+		prisma.project.delete({
+			where: { id: projectId }
+		})
+	]);
+
+	return project;
+};

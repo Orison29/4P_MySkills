@@ -17,18 +17,19 @@ export default function ProjectsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: projectsApi.deleteProject,
+    mutationFn: projectsApi.forceDeleteProject,
     onSuccess: () => {
-      toast.success('Project deleted successfully');
+      toast.success('Project force deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
-    onError: () => {
-      toast.error('Failed to delete project');
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Failed to delete project';
+      toast.error(message);
     }
   });
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this project?')) {
+    if (confirm('Force delete this project? This permanently removes its deliverables, assignments, requests, and tasks.')) {
       deleteMutation.mutate(id);
     }
   };
@@ -93,8 +94,8 @@ export default function ProjectsPage() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleDelete(project.id)}
-                    className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 :bg-red-950/30 rounded-md transition"
-                    title="Delete Project"
+                    className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition"
+                    title="Force Delete Project"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

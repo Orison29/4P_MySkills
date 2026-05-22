@@ -8,7 +8,8 @@ import {
 	getProjectHandler,
 	updateProjectStatusHandler,
 	analyzeProjectHandler,
-	deleteProjectHandler
+	deleteProjectHandler,
+	forceDeleteProjectHandler
 } from "./project.controller";
 
 const router = Router();
@@ -53,6 +54,13 @@ router.delete(
 	authMiddleware,
 	requireRole(Role.HR),
 	deleteProjectHandler
+);
+
+router.delete(
+	"/:id/force",
+	authMiddleware,
+	requireRole(Role.HR),
+	forceDeleteProjectHandler
 );
 
 export default router;

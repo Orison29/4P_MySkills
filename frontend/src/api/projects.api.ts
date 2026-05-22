@@ -22,6 +22,11 @@ export const projectsApi = {
     return response.data;
   },
 
+  forceDeleteProject: async (id: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(`/projects/${id}/force`);
+    return response.data;
+  },
+
   updateProjectStatus: async (id: string, status: string): Promise<Project> => {
     const response = await apiClient.patch<Project>(`/projects/${id}/status`, { status });
     return response.data;
