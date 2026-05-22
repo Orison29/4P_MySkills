@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const tasks_controller_1 = require("./tasks.controller");
+const router = (0, express_1.Router)();
+router.patch("/:id/status", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.EMPLOYEE), tasks_controller_1.updateTaskStatusHandler);
+router.get("/me", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.EMPLOYEE), tasks_controller_1.getMyTasksHandler);
+router.get("/manager-team", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.MANAGER), tasks_controller_1.getManagerTeamTasksHandler);
+exports.default = router;

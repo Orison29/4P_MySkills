@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const project_controller_1 = require("./project.controller");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.createProjectHandler);
+router.get("/", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.getProjectsHandler);
+router.get("/:id", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.getProjectHandler);
+router.patch("/:id/status", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.updateProjectStatusHandler);
+router.post("/:id/analyze", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.analyzeProjectHandler);
+router.delete("/:id", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.deleteProjectHandler);
+router.delete("/:id/force", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), project_controller_1.forceDeleteProjectHandler);
+exports.default = router;

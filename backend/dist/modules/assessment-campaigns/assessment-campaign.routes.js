@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const assessment_campaign_controller_1 = require("./assessment-campaign.controller");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware);
+router.get("/active/me", (0, role_middleware_1.requireRole)(client_1.Role.EMPLOYEE), assessment_campaign_controller_1.getMyActiveCampaignProgressHandler);
+router.post("/", (0, role_middleware_1.requireRole)(client_1.Role.HR), assessment_campaign_controller_1.createAssessmentCampaignHandler);
+router.get("/", (0, role_middleware_1.requireRole)(client_1.Role.HR), assessment_campaign_controller_1.listAssessmentCampaignsHandler);
+router.get("/:campaignId/coverage", (0, role_middleware_1.requireRole)(client_1.Role.HR), assessment_campaign_controller_1.getCampaignCoverageAnalyticsHandler);
+router.get("/:campaignId/departments/:departmentId/employees", (0, role_middleware_1.requireRole)(client_1.Role.HR), assessment_campaign_controller_1.getDepartmentEmployeeCoverageHandler);
+exports.default = router;

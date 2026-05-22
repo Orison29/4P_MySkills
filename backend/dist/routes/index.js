@@ -1,0 +1,44 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.registerRoutes = void 0;
+const auth_routes_1 = __importDefault(require("../modules/auth/auth.routes"));
+const department_routes_1 = __importDefault(require("../modules/departments/department.routes"));
+const employee_routes_1 = __importDefault(require("../modules/employees/employee.routes"));
+const project_routes_1 = __importDefault(require("../modules/projects/project.routes"));
+const assignment_routes_1 = __importDefault(require("../modules/assignments/assignment.routes"));
+const skill_routes_1 = __importDefault(require("../modules/skills/skill.routes"));
+const employee_skill_routes_1 = __importDefault(require("../modules/employee-skills/employee-skill.routes"));
+const deliverable_routes_1 = __importDefault(require("../modules/deliverables/deliverable.routes"));
+const deliverable_skill_routes_1 = __importDefault(require("../modules/deliverable-skills/deliverable-skill.routes"));
+const recommendation_routes_1 = __importDefault(require("../modules/recommendations/recommendation.routes"));
+const analytics_routes_1 = __importDefault(require("../modules/analytics/analytics.routes"));
+const assessment_campaign_routes_1 = __importDefault(require("../modules/assessment-campaigns/assessment-campaign.routes"));
+const skills_ingest_routes_1 = __importDefault(require("../modules/skills-ingest/skills-ingest.routes"));
+const manager_ingest_routes_1 = __importDefault(require("../modules/manager-ingest/manager-ingest.routes"));
+const employee_ingest_routes_1 = __importDefault(require("../modules/employee-ingest/employee-ingest.routes"));
+const tasks_routes_1 = __importDefault(require("../modules/tasks/tasks.routes"));
+const registerRoutes = (app) => {
+    app.use("/api/auth", auth_routes_1.default);
+    app.use("/api/departments", department_routes_1.default);
+    app.use("/api/employees", employee_routes_1.default);
+    app.use("/api/projects", project_routes_1.default);
+    app.use("/api/skills", skill_routes_1.default);
+    app.use("/api/employee-skills", employee_skill_routes_1.default);
+    app.use("/api/skills/ingest", skills_ingest_routes_1.default);
+    app.use("/api/managers/ingest", manager_ingest_routes_1.default);
+    app.use("/api/employees/ingest", employee_ingest_routes_1.default);
+    app.use("/api/tasks", tasks_routes_1.default);
+    app.use("/api", deliverable_routes_1.default);
+    app.use("/api", deliverable_skill_routes_1.default);
+    app.use("/api", recommendation_routes_1.default);
+    app.use("/api", assignment_routes_1.default);
+    app.use("/api/analytics", analytics_routes_1.default);
+    app.use("/api/assessment-campaigns", assessment_campaign_routes_1.default);
+    app.get("/health", (_, res) => {
+        res.json({ status: "ok" });
+    });
+};
+exports.registerRoutes = registerRoutes;

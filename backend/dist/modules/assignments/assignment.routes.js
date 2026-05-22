@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const assignment_controller_1 = require("./assignment.controller");
+const router = (0, express_1.Router)();
+router.post("/deliverables/:id/request-assignment", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.HR), assignment_controller_1.createAssignmentRequestHandler);
+router.get("/assignment-requests/pending", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.MANAGER), assignment_controller_1.getPendingRequestsHandler);
+router.patch("/assignment-requests/:id/review", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.MANAGER), assignment_controller_1.reviewAssignmentRequestHandler);
+exports.default = router;

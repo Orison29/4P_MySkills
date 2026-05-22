@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const client_1 = require("@prisma/client");
+const auth_middleware_1 = require("../../middlewares/auth.middleware");
+const role_middleware_1 = require("../../middlewares/role.middleware");
+const employee_controller_1 = require("./employee.controller");
+const router = (0, express_1.Router)();
+router.post("/", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.ADMIN), employee_controller_1.createEmployeeHandler);
+router.get("/me/assignments", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.EMPLOYEE), employee_controller_1.getMyAssignmentsHandler);
+router.get("/me/profile", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.EMPLOYEE), employee_controller_1.getMyProfileHandler);
+router.patch("/:id/assign-manager", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.ADMIN), employee_controller_1.assignManagerHandler);
+router.get("/my-team", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.MANAGER, client_1.Role.HR, client_1.Role.ADMIN), employee_controller_1.getMyTeamHandler);
+router.patch("/:id/role", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.ADMIN), employee_controller_1.changeRoleHandler);
+router.delete("/:id", auth_middleware_1.authMiddleware, (0, role_middleware_1.requireRole)(client_1.Role.ADMIN), employee_controller_1.deleteUserHandler);
+exports.default = router;
